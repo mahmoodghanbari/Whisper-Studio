@@ -31,18 +31,26 @@ export function TitleBar({
   }
 
   const windowButtonClass =
-    'h-full w-full rounded-none text-muted-foreground [-webkit-app-region:no-drag] hover:bg-accent hover:text-foreground'
+    'h-full w-full rounded-none text-muted-foreground [-webkit-app-region:no-drag] hover:bg-accent hover:text-accent-foreground'
 
   return (
     <header
       className={cn(
-        'flex h-[2.375rem] items-center border-b border-border bg-card pl-3 [-webkit-app-region:drag]',
+        'shell-titlebar flex h-[2.375rem] items-center border-b border-border bg-titlebar pl-3 [-webkit-app-region:drag]',
         platform === 'darwin' && 'pl-20'
       )}
     >
       <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-muted-foreground">
         <AppWindow className="size-4 shrink-0" />
         <span className="truncate">{appName}</span>
+      </div>
+
+      <div className="min-w-0 flex-1" />
+
+      <div className="hidden items-center gap-1.5 text-[11px] text-muted-foreground/50 md:flex">
+        <span className="rounded bg-secondary/40 px-2 py-0.5 font-mono">
+          Transcription Workspace
+        </span>
       </div>
 
       <div className="min-w-0 flex-1" />
@@ -75,10 +83,7 @@ export function TitleBar({
           type="button"
           variant="ghost"
           size="icon"
-          className={cn(
-            windowButtonClass,
-            'hover:bg-destructive hover:text-white'
-          )}
+          className={cn(windowButtonClass, 'hover:bg-destructive hover:text-white')}
           onClick={(event) => runWindowAction(event, onClose)}
           title="Close"
         >

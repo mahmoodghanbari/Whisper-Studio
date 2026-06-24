@@ -12,13 +12,31 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-titlebar: var(--titlebar);
+  --color-sidebar: var(--sidebar-background);
+  --color-sidebar-background: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -31,24 +49,65 @@
 :root {
   color-scheme: dark;
   --radius: 0.5rem;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: #0d0e12;
+  --foreground: #f0f2f5;
+  --card: #111318;
+  --card-foreground: #f0f2f5;
+  --popover: #15181e;
+  --popover-foreground: #f0f2f5;
+  --primary: #2a8ff4;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1d23;
+  --secondary-foreground: #b6bfc9;
+  --muted: #1f2229;
+  --muted-foreground: #707d8f;
+  --accent: #2a8ff4;
+  --accent-foreground: #ffffff;
+  --destructive: #df3a3a;
+  --destructive-foreground: #ffffff;
+  --border: #1f2229;
+  --input: #1f2229;
+  --ring: #2a8ff4;
+  --chart-1: #2a8ff4;
+  --chart-2: #2dd2b7;
+  --chart-3: #f5a83d;
+  --chart-4: #e052b1;
+  --chart-5: #30abe8;
+  --sidebar-background: #0f1115;
+  --sidebar-foreground: #b6bfc9;
+  --sidebar-primary: #2a8ff4;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a1d23;
+  --sidebar-accent-foreground: #f0f2f5;
+  --sidebar-border: #1f2229;
+  --sidebar-ring: #2a8ff4;
+  --titlebar: #111318;
+  --success: #28bd7f;
+  --warning: #f4a825;
+}
+
+@layer components {
+  .glass-panel {
+    @apply border border-border/60 bg-card/70 shadow-sm backdrop-blur;
+  }
+
+  .shell-main {
+    background: var(--background);
+  }
+
+  .shell-sidebar {
+    background: var(--sidebar-background);
+  }
+
+  .shell-titlebar {
+    background: var(--titlebar);
+  }
+
+  .glow-primary {
+    box-shadow:
+      0 0 24px color-mix(in oklab, var(--primary) 26%, transparent),
+      0 0 2px color-mix(in oklab, var(--primary) 45%, transparent);
+  }
 }
 
 @layer base {
@@ -72,6 +131,36 @@
       BlinkMacSystemFont,
       "Segoe UI",
       sans-serif;
+  }
+
+  * {
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    min-height: 40px;
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+    background-color: color-mix(in oklab, var(--muted-foreground) 38%, transparent);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--muted-foreground) 62%, transparent);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
   button:not(:disabled),

@@ -7,6 +7,7 @@ import { IPC_CHANNELS } from '../shared/ipc'
 let mainWindow: BrowserWindow | null = null
 
 const isDevelopment = process.env.NODE_ENV === 'development'
+const shouldOpenDevTools = process.env.ELECTRON_OPEN_DEVTOOLS === 'true'
 
 function isAllowedNavigation(navigationUrl: string): boolean {
   if (navigationUrl.startsWith('file://')) {
@@ -58,7 +59,9 @@ function createMainWindow(): BrowserWindow {
 
   if (isDevelopment && process.env.ELECTRON_RENDERER_URL) {
     window.loadURL(process.env.ELECTRON_RENDERER_URL)
-    window.webContents.openDevTools({ mode: 'detach' })
+    if (shouldOpenDevTools) {
+      window.webContents.openDevTools({ mode: 'detach' })
+    }
   } else {
     window.loadFile(join(__dirname, '../renderer/index.html'))
   }
