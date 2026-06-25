@@ -116,9 +116,7 @@ export default function Prerequisites({ desktop }: PrerequisitesProps) {
   const handleInstall = useCallback(
     async (id: PrerequisiteId): Promise<void> => {
       setItems((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, error: null, status: 'installing' } : item
-        )
+        prev.map((item) => (item.id === id ? { ...item, error: null, status: 'installing' } : item))
       )
 
       const result = await desktop.installPrerequisite(id)
@@ -184,10 +182,7 @@ export default function Prerequisites({ desktop }: PrerequisitesProps) {
             ? prerequisitesCaptions.actions.openInstaller
             : prerequisitesCaptions.actions.install
           return (
-            <div
-              key={item.id}
-              className="rounded-xl border border-border/40 bg-card p-4"
-            >
+            <div key={item.id} className="rounded-xl border border-border/40 bg-card p-4">
               <div className="flex items-start gap-3 mb-3">
                 <div
                   className={`w-9 h-9 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}

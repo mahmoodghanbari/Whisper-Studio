@@ -4,14 +4,7 @@ import { FORMAT_ICONS } from '@/lib/format-icons'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { captions } from '@/captions'
-import {
-  ArrowLeft,
-  Copy,
-  Check,
-  Download,
-  FolderOpen,
-  Eye
-} from 'lucide-react'
+import { ArrowLeft, Copy, Check, Download, FolderOpen, Eye } from 'lucide-react'
 
 const FORMATS = captions.export.formats.map((format) => ({
   ...format,
@@ -102,7 +95,7 @@ export default function Export() {
 
         {FORMATS.map((f) => (
           <TabsContent key={f.value} value={f.value}>
-              <div className="glass-panel rounded-xl overflow-hidden">
+            <div className="glass-panel rounded-xl overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/50 bg-secondary/20">
                 <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                 <span className="text-[11px] font-medium text-muted-foreground">

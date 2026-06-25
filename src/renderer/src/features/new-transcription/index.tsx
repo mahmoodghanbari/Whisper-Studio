@@ -80,16 +80,13 @@ export default function NewTranscription() {
 
       {/* Step Content */}
       <div key={step}>
-          {step === 1 && <StepFiles files={files} setFiles={setFiles} />}
-          {step === 2 && <StepSettings settings={settings} setSettings={setSettings} />}
-          {step === 3 && (
-            <StepOutput
-              outputFormats={outputFormats}
-              setOutputFormats={setOutputFormats}
-            />
-          )}
-          {step === 4 && <Processing />}
-        </div>
+        {step === 1 && <StepFiles files={files} setFiles={setFiles} />}
+        {step === 2 && <StepSettings settings={settings} setSettings={setSettings} />}
+        {step === 3 && (
+          <StepOutput outputFormats={outputFormats} setOutputFormats={setOutputFormats} />
+        )}
+        {step === 4 && <Processing />}
+      </div>
 
       {/* Navigation */}
       {step < 4 && (

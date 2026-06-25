@@ -68,10 +68,7 @@ export default function StepFiles({ files, setFiles }: StepFilesProps): JSX.Elem
             {captions.newTranscription.files.selectedFiles}
           </h3>
           {files.map((file, i) => (
-            <div
-              key={i}
-              className="glass-panel rounded-xl p-4 flex items-center gap-4"
-            >
+            <div key={i} className="glass-panel rounded-xl p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
                 {file.type === 'video' ? (
                   <FileVideo className="w-4.5 h-4.5 text-primary" />
