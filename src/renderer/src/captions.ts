@@ -61,9 +61,9 @@ export const captions = {
       title: 'Whisper Models',
       subtitle: 'Download and manage Faster-Whisper transcription models',
       storageLabel: 'Storage',
-      storageValue: '4.5 GB',
       activeLabel: 'Active',
-      activeValue: 'large-v3'
+      emptyStorageValue: '0 B',
+      emptyActiveValue: 'None'
     },
     prerequisites: {
       title: 'Prerequisites',
@@ -130,47 +130,21 @@ export const captions = {
       summary: {
         suffix: 'models',
         separator: '·',
-        storageUsed: '4.5 GB used'
+        storageSuffix: 'used'
       },
       empty: {
         title: 'No models downloaded yet',
-        subtitle: 'Browse available models below to get started'
+        subtitle: 'Browse available models below to get started',
+        loadingTitle: 'Checking downloaded models...'
       },
       detailSeparator: '·',
       languageSuffix: 'langs',
       actions: {
         more: 'Model actions',
-        delete: 'Delete model'
-      },
-      items: [
-        {
-          id: 1,
-          name: 'large-v3',
-          size: '2.9 GB',
-          precision: 'float16',
-          languages: '99',
-          params: '1.55B',
-          downloaded: '2 days ago'
-        },
-        {
-          id: 2,
-          name: 'medium',
-          size: '1.5 GB',
-          precision: 'int8',
-          languages: '99',
-          params: '769M',
-          downloaded: '1 week ago'
-        },
-        {
-          id: 3,
-          name: 'base',
-          size: '145 MB',
-          precision: 'int8',
-          languages: '99',
-          params: '74M',
-          downloaded: '2 weeks ago'
-        }
-      ]
+        refresh: 'Refresh models',
+        delete: 'Delete model',
+        deleting: 'Deleting...'
+      }
     },
     available: {
       title: 'Available Models',
@@ -178,16 +152,22 @@ export const captions = {
       recommended: 'Recommended',
       languageCount: '99',
       progressSuffix: '%',
+      empty: {
+        title: 'All available models are downloaded',
+        subtitle: 'Refresh downloaded models if you added or removed files outside the app.'
+      },
       actions: {
         download: 'Download',
         downloading: 'Downloading...',
-        downloaded: 'Downloaded'
+        downloaded: 'Downloaded',
+        downloadFailed: 'Download failed'
       },
       items: [
         {
           id: 1,
           name: 'tiny',
-          size: '39 MB',
+          repoId: 'Systran/faster-whisper-tiny',
+          size: '74 MB',
           params: '39M',
           speed: 'Fastest',
           accuracy: 'Low',
@@ -197,7 +177,8 @@ export const captions = {
         {
           id: 2,
           name: 'base',
-          size: '74 MB',
+          repoId: 'Systran/faster-whisper-base',
+          size: '141 MB',
           params: '74M',
           speed: 'Very Fast',
           accuracy: 'Low',
@@ -207,7 +188,8 @@ export const captions = {
         {
           id: 3,
           name: 'small',
-          size: '244 MB',
+          repoId: 'Systran/faster-whisper-small',
+          size: '464 MB',
           params: '244M',
           speed: 'Fast',
           accuracy: 'Medium',
@@ -217,6 +199,7 @@ export const captions = {
         {
           id: 4,
           name: 'medium',
+          repoId: 'Systran/faster-whisper-medium',
           size: '769 MB',
           params: '769M',
           speed: 'Medium',
@@ -226,8 +209,9 @@ export const captions = {
         },
         {
           id: 5,
-          name: 'large-v3',
-          size: '1.55 GB',
+          name: 'large-v2',
+          repoId: 'Systran/faster-whisper-large-v2',
+          size: '3 GB',
           params: '1.55B',
           speed: 'Slow',
           accuracy: 'Highest',
@@ -235,14 +219,15 @@ export const captions = {
           desc: 'Best accuracy, multilingual'
         },
         {
-          id: 6,
-          name: 'large-v3-turbo',
-          size: '809 MB',
-          params: '809M',
-          speed: 'Fast',
-          accuracy: 'High',
+          id: 5,
+          name: 'large-v3',
+          repoId: 'Systran/faster-whisper-large-v3',
+          size: '2.9 GB',
+          params: '1.55B',
+          speed: 'Slow',
+          accuracy: 'Highest',
           recommended: true,
-          desc: 'Near large-v3 quality at 8x speed'
+          desc: 'Best accuracy, multilingual'
         }
       ]
     }

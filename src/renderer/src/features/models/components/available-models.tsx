@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Download, Loader2, Check, Cpu, Globe, Zap, Star } from 'lucide-react'
+import { Download, Loader2, Cpu, Globe, Zap, Star, Boxes } from 'lucide-react'
+import type { DownloadedWhisperModel, WhisperModelDownloadProgress } from '@shared/ipc'
 import { Button } from '@/components/ui/button'
 import { motion } from '@/lib/motion'
 import { captions } from '@/captions'
@@ -16,25 +17,89 @@ const speedColor: Record<AvailableModel['speed'], string> = {
   Slow: 'text-muted-foreground'
 }
 
-export default function AvailableModels() {
-  const [downloading, setDownloading] = useState<Partial<Record<AvailableModelId, number>>>({})
-  const [downloaded, setDownloaded] = useState<Set<AvailableModelId>>(() => new Set())
+interface AvailableModelsProps {
+  downloadProgress: Record<string, WhisperModelDownloadProgress>
+  downloadedModels: DownloadedWhisperModel[]
+  onDownload: (repoId: string) => Promise<void>
+}
 
-  const handleDownload = (id: AvailableModelId): void => {
-    setDownloading((prev) => ({ ...prev, [id]: 0 }))
-    const interval = setInterval(() => {
+function normalizeModelName(value: string): string {
+  return value.toLowerCase().replace(/^faster-whisper-/, '')
+}
+
+function parseSize(size: string): number {
+  const match = size.match(/^([\d.]+)\s*(B|KB|MB|GB|TB)$/i)
+
+  if (!match) {
+    return 0
+  }
+
+  const value = Number(match[1])
+  const unit = match[2].toUpperCase()
+  const multipliers: Record<string, number> = {
+    B: 1,
+    KB: 1024,
+    MB: 1024 ** 2,
+    GB: 1024 ** 3,
+    TB: 1024 ** 4
+  }
+
+  return value * multipliers[unit]
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes <= 0) {
+    return '0 B'
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const value = bytes / 1024 ** exponent
+
+  return `${value >= 10 || exponent === 0 ? Math.round(value) : value.toFixed(1)} ${units[exponent]}`
+}
+
+export default function AvailableModels({
+  downloadProgress,
+  downloadedModels,
+  onDownload
+}: AvailableModelsProps) {
+  const [downloading, setDownloading] = useState<Set<AvailableModelId>>(() => new Set())
+  const [errorByModelId, setErrorByModelId] = useState<Partial<Record<AvailableModelId, string>>>(
+    {}
+  )
+  const downloadedModelNames = new Set(
+    downloadedModels.flatMap((model) => [
+      normalizeModelName(model.name),
+      normalizeModelName(model.source.split('/').at(-1) ?? model.source)
+    ])
+  )
+  const availableModels = availableCaptions.items.filter(
+    (model) => !downloadedModelNames.has(normalizeModelName(model.name))
+  )
+
+  const handleDownload = async (model: AvailableModel): Promise<void> => {
+    setDownloading((prev) => new Set([...prev, model.id]))
+    setErrorByModelId((prev) => {
+      const { [model.id]: _removed, ...rest } = prev
+      void _removed
+      return rest
+    })
+
+    try {
+      await onDownload(model.repoId)
+    } catch (error) {
+      setErrorByModelId((prev) => ({
+        ...prev,
+        [model.id]: error instanceof Error ? error.message : String(error)
+      }))
+    } finally {
       setDownloading((prev) => {
-        const next = (prev[id] || 0) + Math.random() * 18
-        if (next >= 100) {
-          clearInterval(interval)
-          setDownloaded((d) => new Set([...d, id]))
-          const { [id]: completedProgress, ...rest } = prev
-          void completedProgress
-          return rest
-        }
-        return { ...prev, [id]: next }
+        const next = new Set(prev)
+        next.delete(model.id)
+        return next
       })
-    }, 400)
+    }
   }
 
   return (
@@ -42,94 +107,113 @@ export default function AvailableModels() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-semibold text-foreground">{availableCaptions.title}</h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            {availableCaptions.subtitle}
-          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{availableCaptions.subtitle}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {availableCaptions.items.map((model, i) => {
-          const isDownloading = downloading[model.id] !== undefined
-          const isDownloaded = downloaded.has(model.id)
-          return (
-            <motion.div
-              key={model.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className={`relative flex flex-col rounded-2xl border bg-card p-5 transition-all ${
-                model.recommended ? 'border-primary/30' : 'border-border/40 hover:border-border/70'
-              }`}
-            >
-              {model.recommended && (
-                <div className="absolute -top-2.5 left-4 flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-medium">
-                  <Star className="w-2.5 h-2.5" /> {availableCaptions.recommended}
-                </div>
-              )}
-
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="text-[14px] font-semibold font-mono">{model.name}</h3>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{model.size}</p>
-                </div>
-                <span className={`text-[10px] font-medium ${speedColor[model.speed]}`}>
-                  {model.speed}
-                </span>
-              </div>
-
-              <p className="text-[11px] text-muted-foreground leading-relaxed mb-4 flex-1">
-                {model.desc}
-              </p>
-
-              <div className="flex items-center gap-3 mb-4 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Cpu className="w-3 h-3" /> {model.params}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Globe className="w-3 h-3" /> {availableCaptions.languageCount}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Zap className="w-3 h-3" /> {model.accuracy}
-                </span>
-              </div>
-
-              {isDownloading ? (
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="flex items-center gap-1.5 text-[11px] text-primary">
-                      <Loader2 className="w-3 h-3 animate-spin" />{' '}
-                      {availableCaptions.actions.downloading}
-                    </span>
-                    <span className="text-[11px] font-mono text-primary">
-                      {Math.round(downloading[model.id] ?? 0)}
-                      {availableCaptions.progressSuffix}
-                    </span>
+        {availableModels.length === 0 ? (
+          <div className="glass-panel col-span-full rounded-2xl p-10 text-center">
+            <Boxes className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">{availableCaptions.empty.title}</p>
+            <p className="text-[11px] text-muted-foreground/60 mt-1">
+              {availableCaptions.empty.subtitle}
+            </p>
+          </div>
+        ) : (
+          availableModels.map((model, i) => {
+            const isDownloading = downloading.has(model.id)
+            const progress = downloadProgress[model.repoId]
+            const expectedSizeBytes = parseSize(model.size)
+            const downloadedBytes = progress?.downloadedBytes ?? 0
+            const progressPercent =
+              expectedSizeBytes > 0
+                ? Math.min(Math.round((downloadedBytes / expectedSizeBytes) * 100), 100)
+                : 0
+            return (
+              <motion.div
+                key={model.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className={`relative flex flex-col rounded-2xl border bg-card p-5 transition-all ${
+                  model.recommended
+                    ? 'border-primary/30'
+                    : 'border-border/40 hover:border-border/70'
+                }`}
+              >
+                {model.recommended && (
+                  <div className="absolute -top-2.5 left-4 flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-medium">
+                    <Star className="w-2.5 h-2.5" /> {availableCaptions.recommended}
                   </div>
-                  <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-primary to-chart-2 rounded-full"
-                      animate={{ width: `${downloading[model.id] ?? 0}%` }}
-                    />
+                )}
+
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="text-[14px] font-semibold font-mono">{model.name}</h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{model.size}</p>
                   </div>
+                  <span className={`text-[10px] font-medium ${speedColor[model.speed]}`}>
+                    {model.speed}
+                  </span>
                 </div>
-              ) : isDownloaded ? (
-                <Button variant="secondary" size="sm" disabled className="w-full gap-1.5 text-xs">
-                  <Check className="w-3.5 h-3.5" /> {availableCaptions.actions.downloaded}
-                </Button>
-              ) : (
-                <Button
-                  variant={model.recommended ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleDownload(model.id)}
-                  className="w-full gap-1.5 text-xs"
-                >
-                  <Download className="w-3.5 h-3.5" /> {availableCaptions.actions.download}
-                </Button>
-              )}
-            </motion.div>
-          )
-        })}
+
+                <p className="text-[11px] text-muted-foreground leading-relaxed mb-4 flex-1">
+                  {model.desc}
+                </p>
+
+                <div className="flex items-center gap-3 mb-4 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Cpu className="w-3 h-3" /> {model.params}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Globe className="w-3 h-3" /> {availableCaptions.languageCount}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Zap className="w-3 h-3" /> {model.accuracy}
+                  </span>
+                </div>
+
+                {isDownloading ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="flex items-center gap-1.5 text-[11px] text-primary">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        {availableCaptions.actions.downloading}
+                      </span>
+                      <span className="text-[11px] font-mono text-primary">
+                        {formatBytes(downloadedBytes)} / {model.size}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full bg-gradient-to-r from-primary to-chart-2 rounded-full"
+                        animate={{
+                          width: `${Math.max(progressPercent, downloadedBytes ? 4 : 0)}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant={model.recommended ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => void handleDownload(model)}
+                    className="w-full gap-1.5 text-xs"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    {availableCaptions.actions.download}
+                  </Button>
+                )}
+                {errorByModelId[model.id] && (
+                  <p className="mt-2 text-[11px] leading-snug text-destructive">
+                    {availableCaptions.actions.downloadFailed}: {errorByModelId[model.id]}
+                  </p>
+                )}
+              </motion.div>
+            )
+          })
+        )}
       </div>
     </div>
   )

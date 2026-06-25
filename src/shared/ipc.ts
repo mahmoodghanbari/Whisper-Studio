@@ -4,6 +4,10 @@ export const IPC_CHANNELS = {
   systemStatus: 'system:status',
   prerequisites: 'system:prerequisites',
   prerequisiteInstall: 'system:prerequisite-install',
+  downloadedModels: 'models:downloaded',
+  downloadModel: 'models:download',
+  modelDownloadProgress: 'models:download-progress',
+  deleteModel: 'models:delete',
   windowIsMaximized: 'window:is-maximized',
   windowStateChanged: 'window:state-changed',
   windowMinimize: 'window:minimize',
@@ -66,6 +70,39 @@ export interface PrerequisiteInstallResult {
   stdout?: string
 }
 
+export interface DownloadedWhisperModel {
+  downloadedAt: number
+  id: string
+  languages: string
+  name: string
+  params: string
+  path: string
+  precision: string
+  sizeBytes: number
+  source: string
+}
+
+export interface DownloadedWhisperModelsResult {
+  models: DownloadedWhisperModel[]
+  totalSizeBytes: number
+}
+
+export interface WhisperModelActionResult {
+  id: string
+  ok: boolean
+  path?: string
+  stderr?: string
+  stdout?: string
+}
+
+export type WhisperModelDownloadProgressState = 'active' | 'complete' | 'error'
+
+export interface WhisperModelDownloadProgress {
+  downloadedBytes: number
+  repoId: string
+  state: WhisperModelDownloadProgressState
+}
+
 export interface WhisperFileSelection {
   canceled: boolean
   filePath?: string
@@ -109,6 +146,12 @@ export interface DesktopApi {
   getSystemStatus: () => Promise<SystemStatus>
   getPrerequisites: () => Promise<PrerequisiteCheck[]>
   installPrerequisite: (id: PrerequisiteCheckId) => Promise<PrerequisiteInstallResult>
+  getDownloadedModels: () => Promise<DownloadedWhisperModelsResult>
+  downloadModel: (repoId: string) => Promise<WhisperModelActionResult>
+  deleteModel: (id: string) => Promise<WhisperModelActionResult>
+  onModelDownloadProgress: (
+    callback: (progress: WhisperModelDownloadProgress) => void
+  ) => () => void
   selectWhisperFile: () => Promise<WhisperFileSelection>
   transcribeWithWhisper: (filePath: string) => Promise<WhisperTranscriptionResult>
   onWhisperOutput: (callback: (chunk: WhisperOutputChunk) => void) => () => void

@@ -1,5 +1,10 @@
+import { useCallback, useEffect, useState } from 'react'
 import { Boxes, HardDrive, Cpu } from 'lucide-react'
-import type { DesktopApi } from '@shared/ipc'
+import type {
+  DesktopApi,
+  DownloadedWhisperModelsResult,
+  WhisperModelDownloadProgress
+} from '@shared/ipc'
 import { motion } from '@/lib/motion'
 import { captions } from '@/captions'
 import DownloadedModels from './components/dowanload-models'
@@ -10,8 +15,76 @@ interface ModelsProps {
   desktop: DesktopApi
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) {
+    return captions.models.header.emptyStorageValue
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const value = bytes / 1024 ** exponent
+
+  return `${value >= 10 || exponent === 0 ? Math.round(value) : value.toFixed(1)} ${units[exponent]}`
+}
+
 export default function Models({ desktop }: ModelsProps) {
   const modelsCaptions = captions.models
+  const [downloadedModels, setDownloadedModels] = useState<DownloadedWhisperModelsResult>({
+    models: [],
+    totalSizeBytes: 0
+  })
+  const [downloadProgress, setDownloadProgress] = useState<
+    Record<string, WhisperModelDownloadProgress>
+  >({})
+  const [isLoadingDownloadedModels, setIsLoadingDownloadedModels] = useState(true)
+
+  const refreshDownloadedModels = useCallback(async (): Promise<void> => {
+    setIsLoadingDownloadedModels(true)
+
+    try {
+      setDownloadedModels(await desktop.getDownloadedModels())
+    } finally {
+      setIsLoadingDownloadedModels(false)
+    }
+  }, [desktop])
+
+  const deleteDownloadedModel = useCallback(
+    async (id: string): Promise<void> => {
+      const result = await desktop.deleteModel(id)
+
+      if (!result.ok) {
+        throw new Error(result.stderr || 'Failed to delete model')
+      }
+
+      await refreshDownloadedModels()
+    },
+    [desktop, refreshDownloadedModels]
+  )
+
+  const downloadAvailableModel = useCallback(
+    async (repoId: string): Promise<void> => {
+      const result = await desktop.downloadModel(repoId)
+
+      if (!result.ok) {
+        throw new Error(result.stderr || 'Failed to download model')
+      }
+
+      await refreshDownloadedModels()
+    },
+    [desktop, refreshDownloadedModels]
+  )
+
+  useEffect(() => {
+    void refreshDownloadedModels()
+  }, [refreshDownloadedModels])
+
+  useEffect(() => {
+    return desktop.onModelDownloadProgress((progress) => {
+      setDownloadProgress((prev) => ({ ...prev, [progress.repoId]: progress }))
+    })
+  }, [desktop])
+
+  const activeModel = downloadedModels.models[0]?.name ?? modelsCaptions.header.emptyActiveValue
 
   return (
     <div className="p-8 max-w-[1280px] mx-auto space-y-8">
@@ -39,7 +112,7 @@ export default function Models({ desktop }: ModelsProps) {
                 {modelsCaptions.header.storageLabel}
               </p>
               <p className="text-[12px] font-mono font-semibold">
-                {modelsCaptions.header.storageValue}
+                {formatBytes(downloadedModels.totalSizeBytes)}
               </p>
             </div>
           </div>
@@ -49,17 +122,25 @@ export default function Models({ desktop }: ModelsProps) {
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
                 {modelsCaptions.header.activeLabel}
               </p>
-              <p className="text-[12px] font-mono font-semibold">
-                {modelsCaptions.header.activeValue}
-              </p>
+              <p className="text-[12px] font-mono font-semibold">{activeModel}</p>
             </div>
           </div>
         </div>
       </motion.div>
 
       <Prerequisites desktop={desktop} />
-      <DownloadedModels />
-      <AvailableModels />
+      <DownloadedModels
+        isLoading={isLoadingDownloadedModels}
+        models={downloadedModels.models}
+        onDelete={deleteDownloadedModel}
+        onRefresh={() => void refreshDownloadedModels()}
+        totalSizeBytes={downloadedModels.totalSizeBytes}
+      />
+      <AvailableModels
+        downloadProgress={downloadProgress}
+        downloadedModels={downloadedModels.models}
+        onDownload={downloadAvailableModel}
+      />
     </div>
   )
 }

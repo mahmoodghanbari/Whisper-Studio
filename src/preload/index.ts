@@ -4,11 +4,14 @@ import {
   type AppInfo,
   type DesktopApi,
   type DesktopPlatform,
+  type DownloadedWhisperModelsResult,
   type PrerequisiteCheck,
   type PrerequisiteCheckId,
   type PrerequisiteInstallResult,
   type SystemStatus,
   type WhisperFileSelection,
+  type WhisperModelActionResult,
+  type WhisperModelDownloadProgress,
   type WhisperOutputChunk,
   type WhisperProgressUpdate,
   type WhisperTranscriptionResult
@@ -22,6 +25,26 @@ const desktopApi: DesktopApi = {
     ipcRenderer.invoke(IPC_CHANNELS.prerequisites) as Promise<PrerequisiteCheck[]>,
   installPrerequisite: (id: PrerequisiteCheckId) =>
     ipcRenderer.invoke(IPC_CHANNELS.prerequisiteInstall, id) as Promise<PrerequisiteInstallResult>,
+  getDownloadedModels: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.downloadedModels) as Promise<DownloadedWhisperModelsResult>,
+  downloadModel: (repoId: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.downloadModel, repoId) as Promise<WhisperModelActionResult>,
+  deleteModel: (id: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.deleteModel, id) as Promise<WhisperModelActionResult>,
+  onModelDownloadProgress: (callback) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      progress: WhisperModelDownloadProgress
+    ): void => {
+      callback(progress)
+    }
+
+    ipcRenderer.on(IPC_CHANNELS.modelDownloadProgress, listener)
+
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.modelDownloadProgress, listener)
+    }
+  },
   selectWhisperFile: () =>
     ipcRenderer.invoke(IPC_CHANNELS.whisperSelectFile) as Promise<WhisperFileSelection>,
   transcribeWithWhisper: (filePath: string) =>

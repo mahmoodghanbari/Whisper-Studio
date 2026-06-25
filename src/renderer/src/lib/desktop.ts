@@ -2,10 +2,12 @@ import type {
   AppInfo,
   DesktopApi,
   DesktopPlatform,
+  DownloadedWhisperModelsResult,
   PrerequisiteCheck,
   PrerequisiteCheckId,
   PrerequisiteInstallResult,
-  SystemStatus
+  SystemStatus,
+  WhisperModelActionResult
 } from '@shared/ipc'
 
 function detectBrowserPlatform(): DesktopPlatform {
@@ -58,6 +60,21 @@ const browserDesktopApi: DesktopApi = {
     ok: false,
     stderr: 'Prerequisite installation is available in the Electron desktop app.'
   }),
+  getDownloadedModels: async (): Promise<DownloadedWhisperModelsResult> => ({
+    models: [],
+    totalSizeBytes: 0
+  }),
+  downloadModel: async (repoId: string): Promise<WhisperModelActionResult> => ({
+    id: repoId,
+    ok: false,
+    stderr: 'Model downloads are available in the Electron desktop app.'
+  }),
+  deleteModel: async (id: string): Promise<WhisperModelActionResult> => ({
+    id,
+    ok: false,
+    stderr: 'Model deletion is available in the Electron desktop app.'
+  }),
+  onModelDownloadProgress: () => () => undefined,
   selectWhisperFile: async () => ({ canceled: true }),
   transcribeWithWhisper: async (filePath) => ({
     command: `python.exe -u -m whisper "${filePath}" --language fa`,
