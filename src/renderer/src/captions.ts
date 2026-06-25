@@ -18,7 +18,7 @@ export const captions = {
     sections: [
       {
         title: 'Workspace',
-        items: [{ label: 'Your Workspace', routeId: 'overview' }]
+        items: [{ label: 'Your Workspace', routeId: 'dashboard' }]
       },
       {
         title: 'Transcription',

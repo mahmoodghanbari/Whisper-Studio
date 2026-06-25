@@ -82,10 +82,9 @@ function getTranscriptPath(filePath: string): string {
   return join(dirname(filePath), `${fileName}.txt`)
 }
 
-async function readTranscript(filePath: string): Promise<Pick<
-  WhisperTranscriptionResult,
-  'transcript' | 'transcriptPath'
->> {
+async function readTranscript(
+  filePath: string
+): Promise<Pick<WhisperTranscriptionResult, 'transcript' | 'transcriptPath'>> {
   const transcriptPath = getTranscriptPath(filePath)
 
   if (!existsSync(transcriptPath)) {

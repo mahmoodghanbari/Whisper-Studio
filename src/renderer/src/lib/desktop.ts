@@ -1,4 +1,4 @@
-import type { AppInfo, DesktopApi, DesktopPlatform } from '@shared/ipc'
+import type { AppInfo, DesktopApi, DesktopPlatform, SystemStatus } from '@shared/ipc'
 
 function detectBrowserPlatform(): DesktopPlatform {
   const platform = navigator.platform.toLowerCase()
@@ -23,6 +23,19 @@ const browserDesktopApi: DesktopApi = {
     node: 'browser'
   }),
   getPlatform: async () => detectBrowserPlatform(),
+  getSystemStatus: async (): Promise<SystemStatus> => ({
+    ready: true,
+    status: 'System Ready',
+    activity: 'Idle',
+    metrics: [
+      {
+        label: 'CPU',
+        value: navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} cores` : 'Browser'
+      },
+      { label: 'Memory', value: 'Browser' },
+      { label: 'Platform', value: detectBrowserPlatform() }
+    ]
+  }),
   selectWhisperFile: async () => ({ canceled: true }),
   transcribeWithWhisper: async (filePath) => ({
     command: `python.exe -u -m whisper "${filePath}" --language fa`,
@@ -31,6 +44,7 @@ const browserDesktopApi: DesktopApi = {
     stderr: 'Whisper transcription is available in the Electron desktop app.'
   }),
   onWhisperOutput: () => () => undefined,
+  onWhisperProgress: () => () => undefined,
   windowControls: {
     isMaximized: async () => false,
     minimize: async () => undefined,

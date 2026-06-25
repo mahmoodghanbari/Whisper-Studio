@@ -32,7 +32,7 @@ export function TitleBar({
   }
 
   const windowButtonClass =
-    'h-full w-full rounded-none text-muted-foreground [-webkit-app-region:no-drag] hover:bg-accent hover:text-accent-foreground'
+    'h-full w-full rounded-none text-muted-foreground [-webkit-app-region:no-drag] hover:bg-muted hover:text-accent-foreground'
 
   return (
     <header

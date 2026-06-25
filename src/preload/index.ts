@@ -4,6 +4,7 @@ import {
   type AppInfo,
   type DesktopApi,
   type DesktopPlatform,
+  type SystemStatus,
   type WhisperFileSelection,
   type WhisperOutputChunk,
   type WhisperProgressUpdate,
@@ -13,6 +14,7 @@ import {
 const desktopApi: DesktopApi = {
   getAppInfo: () => ipcRenderer.invoke(IPC_CHANNELS.appInfo) as Promise<AppInfo>,
   getPlatform: () => ipcRenderer.invoke(IPC_CHANNELS.platform) as Promise<DesktopPlatform>,
+  getSystemStatus: () => ipcRenderer.invoke(IPC_CHANNELS.systemStatus) as Promise<SystemStatus>,
   selectWhisperFile: () =>
     ipcRenderer.invoke(IPC_CHANNELS.whisperSelectFile) as Promise<WhisperFileSelection>,
   transcribeWithWhisper: (filePath: string) =>

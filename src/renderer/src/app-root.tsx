@@ -7,7 +7,7 @@ import { TitleBar } from './components/title-bar'
 import { captions } from './captions'
 
 export function App(): JSX.Element {
-  const { appInfo, desktop, isWindowMaximized, platform } = useDesktopShell()
+  const { appInfo, desktop, isWindowMaximized, platform, systemStatus } = useDesktopShell()
   const { activeRoute, navigateTo } = useAppRoute()
 
   return (
@@ -28,7 +28,7 @@ export function App(): JSX.Element {
         </main>
       </div>
 
-      <SystemStatusBar />
+      <SystemStatusBar status={systemStatus} />
     </div>
   )
 }

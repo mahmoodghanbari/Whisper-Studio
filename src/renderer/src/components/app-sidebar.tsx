@@ -13,10 +13,11 @@ import type { AppRouteId } from '@/app/routing'
 import { captions } from '@/captions'
 
 const navIcons = {
-  overview: LayoutDashboard,
+  dashboard: LayoutDashboard,
   new: AudioLines,
   settings: Settings,
-  studio: LayoutDashboard
+  studio: LayoutDashboard,
+  export: LayoutDashboard
 } satisfies Record<AppRouteId, LucideIcon>
 
 const navSections = captions.sidebar.sections.map((section) => ({

@@ -1,6 +1,7 @@
 export const IPC_CHANNELS = {
   appInfo: 'app:info',
   platform: 'system:platform',
+  systemStatus: 'system:status',
   windowIsMaximized: 'window:is-maximized',
   windowStateChanged: 'window:state-changed',
   windowMinimize: 'window:minimize',
@@ -24,6 +25,18 @@ export interface AppInfo {
   node: string
 }
 
+export interface SystemStatusMetric {
+  label: string
+  value: string
+}
+
+export interface SystemStatus {
+  activity: string
+  metrics: readonly SystemStatusMetric[]
+  ready: boolean
+  status: string
+}
+
 export interface WhisperFileSelection {
   canceled: boolean
   filePath?: string
@@ -44,12 +57,31 @@ export interface WhisperOutputChunk {
   text: string
 }
 
+export type WhisperProgressPhase =
+  | 'checking-command'
+  | 'checking-whisper'
+  | 'sending-command'
+  | 'waiting'
+  | 'transcribing'
+  | 'complete'
+  | 'error'
+
+export type WhisperProgressState = 'active' | 'complete' | 'error'
+
+export interface WhisperProgressUpdate {
+  message: string
+  phase: WhisperProgressPhase
+  state: WhisperProgressState
+}
+
 export interface DesktopApi {
   getAppInfo: () => Promise<AppInfo>
   getPlatform: () => Promise<DesktopPlatform>
+  getSystemStatus: () => Promise<SystemStatus>
   selectWhisperFile: () => Promise<WhisperFileSelection>
   transcribeWithWhisper: (filePath: string) => Promise<WhisperTranscriptionResult>
   onWhisperOutput: (callback: (chunk: WhisperOutputChunk) => void) => () => void
+  onWhisperProgress: (callback: (update: WhisperProgressUpdate) => void) => () => void
   windowControls: {
     isMaximized: () => Promise<boolean>
     minimize: () => Promise<void>

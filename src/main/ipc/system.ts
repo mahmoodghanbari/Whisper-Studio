@@ -1,7 +1,17 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
-import { IPC_CHANNELS, type AppInfo, type DesktopPlatform } from '../../shared/ipc'
+import { cpus, totalmem } from 'node:os'
+import {
+  IPC_CHANNELS,
+  type AppInfo,
+  type DesktopPlatform,
+  type SystemStatus
+} from '../../shared/ipc'
 
 type WindowResolver = () => BrowserWindow | null
+
+function formatMemory(bytes: number): string {
+  return `${Math.round(bytes / 1024 / 1024 / 1024)} GB`
+}
 
 export function registerSystemHandlers(resolveWindow: WindowResolver): void {
   ipcMain.handle(IPC_CHANNELS.appInfo, (): AppInfo => {
@@ -16,6 +26,21 @@ export function registerSystemHandlers(resolveWindow: WindowResolver): void {
 
   ipcMain.handle(IPC_CHANNELS.platform, (): DesktopPlatform => {
     return process.platform as DesktopPlatform
+  })
+
+  ipcMain.handle(IPC_CHANNELS.systemStatus, (): SystemStatus => {
+    const primaryCpu = cpus()[0]?.model?.replace(/\s+/g, ' ').trim() || process.arch
+
+    return {
+      ready: true,
+      status: 'System Ready',
+      activity: 'Idle',
+      metrics: [
+        { label: 'CPU', value: primaryCpu },
+        { label: 'Memory', value: formatMemory(totalmem()) },
+        { label: 'Platform', value: process.platform }
+      ]
+    }
   })
 
   ipcMain.handle(IPC_CHANNELS.windowIsMaximized, () => {
