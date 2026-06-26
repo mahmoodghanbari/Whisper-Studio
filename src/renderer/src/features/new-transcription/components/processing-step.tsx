@@ -1,37 +1,201 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { DesktopApi, WhisperOutputFile, WhisperProgressPhase } from '@shared/ipc'
 import { Link } from '@/app/navigation'
 import { Button } from '@/components/ui/button'
 import { captions } from '@/captions'
-import { Loader2, CheckCircle2, Circle, Pause, X, ChevronRight, FileAudio } from 'lucide-react'
+import { formatBytes } from '@/lib/utils'
+import {
+  Loader2,
+  CheckCircle2,
+  Circle,
+  X,
+  ChevronRight,
+  FileAudio,
+  FileVideo,
+  ChevronDown,
+  Terminal
+} from 'lucide-react'
+import type { TranscriptionFile } from './files-step'
+import type { TranscriptionSettings } from './settings-step'
 
 const STAGES = captions.processing.stages
+const stageIndexByPhase: Partial<Record<WhisperProgressPhase, number>> = {
+  'checking-command': 0,
+  'checking-whisper': 0,
+  'sending-command': 0,
+  transcribing: 1,
+  complete: 2,
+  error: 2
+}
+const progressByPhase: Partial<Record<WhisperProgressPhase, number>> = {
+  'checking-command': 5,
+  'checking-whisper': 10,
+  'sending-command': 15,
+  transcribing: 30,
+  complete: 100,
+  error: 100
+}
 
-export default function Processing() {
+function formatLogLine(source: string, text: string): string {
+  const timestamp = new Date().toLocaleTimeString()
+  return `[${timestamp}] ${source}: ${text}`
+}
+
+interface ProcessingProps {
+  desktop: DesktopApi
+  file: TranscriptionFile | null
+  outputFormats: string[]
+  settings: TranscriptionSettings
+}
+
+export default function Processing({
+  desktop,
+  file,
+  outputFormats,
+  settings
+}: ProcessingProps): JSX.Element {
   const [progress, setProgress] = useState(0)
-  const [currentStage, setCurrentStage] = useState(2)
+  const [currentStage, setCurrentStage] = useState(0)
+  const [message, setMessage] = useState<string>(captions.processing.status.inProgress)
+  const [error, setError] = useState<string | null>(null)
+  const [outputFiles, setOutputFiles] = useState<WhisperOutputFile[]>([])
+  const [outputDirectory, setOutputDirectory] = useState<string | null>(null)
+  const [commands, setCommands] = useState<string[]>([])
+  const [logs, setLogs] = useState<string[]>([])
+  const [logsOpen, setLogsOpen] = useState(false)
+  const hasStarted = useRef(false)
+  const logsEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          clearInterval(timer)
-          return 100
-        }
-        return p + 0.3
+    if (hasStarted.current) {
+      return
+    }
+
+    hasStarted.current = true
+
+    if (!file) {
+      setError(captions.processing.status.noFile)
+      setMessage(captions.processing.status.failed)
+      setProgress(100)
+      return
+    }
+
+    let isActive = true
+    setLogs([
+      formatLogLine('client', captions.processing.logs.starting),
+      formatLogLine('client', `${captions.processing.logs.filePath}: ${file.path}`),
+      formatLogLine('client', `${captions.processing.logs.model}: ${settings.model}`),
+      formatLogLine('client', `${captions.processing.logs.compute}: ${settings.compute}`),
+      formatLogLine('client', `${captions.processing.logs.formats}: ${outputFormats.join(', ')}`)
+    ])
+
+    const removeProgressListener = desktop.onWhisperProgress((update) => {
+      if (!isActive) {
+        return
+      }
+
+      setMessage(update.message)
+      setCurrentStage(stageIndexByPhase[update.phase] ?? 0)
+      setProgress(progressByPhase[update.phase] ?? 0)
+      setLogs((current) =>
+        [...current, formatLogLine(update.phase, update.message)].filter(Boolean).slice(-40)
+      )
+
+      if (update.phase === 'sending-command') {
+        setCommands((current) =>
+          current.includes(update.message) ? current : [...current, update.message]
+        )
+      }
+
+      if (update.state === 'error') {
+        setError(update.message)
+      }
+    })
+    const removeOutputListener = desktop.onWhisperOutput((chunk) => {
+      if (!isActive) {
+        return
+      }
+
+      setLogs((current) =>
+        [...current, formatLogLine(chunk.stream, chunk.text.trim())].filter(Boolean).slice(-40)
+      )
+    })
+
+    desktop
+      .transcribeWithWhisper({
+        compute: settings.compute,
+        diarization: settings.diarization,
+        filePath: file.path,
+        formats: outputFormats,
+        language: settings.language,
+        model: settings.model,
+        noiseReduction: settings.noiseReduction,
+        removeSilence: settings.removeSilence,
+        translate: settings.translate,
+        wordTimestamps: settings.wordTimestamps
       })
-    }, 100)
-    return () => clearInterval(timer)
-  }, [])
+      .then((result) => {
+        if (!isActive) {
+          return
+        }
 
+        setOutputFiles(result.outputFiles ?? [])
+        setOutputDirectory(result.outputDirectory ?? null)
+        setCommands((current) =>
+          current.includes(result.command) ? current : [...current, result.command]
+        )
+        setLogs((current) =>
+          [
+            ...current,
+            formatLogLine(
+              'result',
+              result.exitCode === 0
+                ? captions.processing.progress.allStagesComplete
+                : result.stderr || captions.processing.status.failed
+            )
+          ]
+            .filter(Boolean)
+            .slice(-40)
+        )
+
+        if (result.exitCode === 0) {
+          setProgress(100)
+          setCurrentStage(STAGES.length - 1)
+          setMessage(captions.processing.progress.allStagesComplete)
+          return
+        }
+
+        setError(result.stderr || captions.processing.status.failed)
+      })
+      .catch((transcriptionError) => {
+        if (!isActive) {
+          return
+        }
+
+        setError(
+          transcriptionError instanceof Error
+            ? transcriptionError.message
+            : captions.processing.status.failed
+        )
+      })
+
+    return () => {
+      isActive = false
+      removeProgressListener()
+      removeOutputListener()
+    }
+  }, [desktop, file, outputFormats, settings])
+
+  // Auto-scroll logs to bottom when new entries arrive
   useEffect(() => {
-    if (progress < 10) setCurrentStage(0)
-    else if (progress < 20) setCurrentStage(1)
-    else if (progress < 80) setCurrentStage(2)
-    else if (progress < 95) setCurrentStage(3)
-    else setCurrentStage(4)
-  }, [progress])
+    if (logsOpen) {
+      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [logs, logsOpen])
 
   const isComplete = progress >= 100
+  const isFailed = Boolean(error)
+  const FileIcon = file?.type === 'video' ? FileVideo : FileAudio
 
   return (
     <div className="mx-auto">
@@ -39,7 +203,11 @@ export default function Processing() {
       <div className="mb-4">
         <h1 className="text-xl font-semibold tracking-tight">{captions.processing.title}</h1>
         <p className="text-xs text-muted-foreground mt-1">
-          {isComplete ? captions.processing.status.complete : captions.processing.status.inProgress}
+          {isFailed
+            ? captions.processing.status.failed
+            : isComplete
+              ? captions.processing.status.complete
+              : captions.processing.status.inProgress}
         </p>
       </div>
 
@@ -47,34 +215,48 @@ export default function Processing() {
       <div className="glass-panel rounded-2xl p-6 mb-4">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-            <FileAudio className="w-5 h-5 text-primary" />
+            <FileIcon className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="text-[14px] font-medium">{captions.processing.job.fileName}</p>
-            <p className="text-[11px] text-muted-foreground">{captions.processing.job.details}</p>
+            <p className="text-[14px] font-medium">
+              {file?.name ?? captions.processing.job.fileName}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {file
+                ? `${file.duration} · ${formatBytes(file.sizeBytes)} · ${settings.model} · ${settings.compute.toUpperCase()}`
+                : captions.processing.job.details}
+            </p>
           </div>
         </div>
 
-        {/* Progress */}
+        {/* Progress bar */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-[13px] font-medium">
-              {isComplete ? captions.processing.progress.complete : STAGES[currentStage]?.label}
+              {isFailed
+                ? captions.processing.status.failed
+                : isComplete
+                  ? captions.processing.progress.complete
+                  : STAGES[currentStage]?.label}
             </span>
-            <span className="text-sm font-mono font-semibold text-primary">
+            <span
+              className={`text-sm font-mono font-semibold ${isFailed ? 'text-destructive' : 'text-primary'}`}
+            >
               {Math.min(100, Math.round(progress))}%
             </span>
           </div>
           <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full ${isComplete ? 'bg-success' : 'bg-primary'}`}
+              className={`h-full rounded-full transition-all duration-500 ${isFailed ? 'bg-destructive' : isComplete ? 'bg-success' : 'bg-primary'}`}
               style={{ width: `${Math.min(100, progress)}%` }}
             />
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">
-            {isComplete
-              ? captions.processing.progress.allStagesComplete
-              : STAGES[currentStage]?.desc}
+            {isFailed
+              ? error
+              : isComplete
+                ? captions.processing.progress.allStagesComplete
+                : message || STAGES[currentStage]?.desc}
           </p>
         </div>
       </div>
@@ -86,14 +268,14 @@ export default function Processing() {
         </h3>
         <div className="space-y-3">
           {STAGES.map((stage, i) => {
-            const isActive = i === currentStage && !isComplete
-            const isDone = i < currentStage || isComplete
+            const stageIsActive = i === currentStage && !isComplete && !isFailed
+            const isDone = (i < currentStage || isComplete) && !isFailed
             return (
               <div key={stage.id} className="flex items-center gap-3">
                 <div className="shrink-0">
                   {isDone ? (
                     <CheckCircle2 className="w-5 h-5 text-success" />
-                  ) : isActive ? (
+                  ) : stageIsActive ? (
                     <Loader2 className="w-5 h-5 text-primary animate-spin" />
                   ) : (
                     <Circle className="w-5 h-5 text-muted-foreground/30" />
@@ -101,22 +283,22 @@ export default function Processing() {
                 </div>
                 <div className="flex-1">
                   <p
-                    className={`text-[13px] font-medium ${isDone ? 'text-foreground' : isActive ? 'text-foreground' : 'text-muted-foreground/50'}`}
+                    className={`text-[13px] font-medium ${isDone || stageIsActive ? 'text-foreground' : 'text-muted-foreground/50'}`}
                   >
                     {stage.label}
                   </p>
                   <p
-                    className={`text-[11px] ${isDone || isActive ? 'text-muted-foreground' : 'text-muted-foreground/30'}`}
+                    className={`text-[11px] ${isDone || stageIsActive ? 'text-muted-foreground' : 'text-muted-foreground/30'}`}
                   >
                     {stage.desc}
                   </p>
                 </div>
                 {isDone && (
-                  <span className="text-[11px] text-muted-foreground font-mono text-success">
+                  <span className="text-[11px] text-success font-mono">
                     {captions.processing.stageStatus.done}
                   </span>
                 )}
-                {isActive && (
+                {stageIsActive && (
                   <span className="text-[11px] text-primary font-mono">
                     {captions.processing.stageStatus.running}
                   </span>
@@ -127,21 +309,101 @@ export default function Processing() {
         </div>
       </div>
 
+      {/* Collapsible logs */}
+      <div className="glass-panel rounded-2xl mb-4 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setLogsOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-secondary/40 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Terminal className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              {captions.processing.diagnosticLogTitle}
+            </span>
+            <span className="text-[10px] font-mono text-muted-foreground/60">
+              ({logs.length} {captions.processing.logs.entries})
+            </span>
+          </div>
+          <ChevronDown
+            className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${logsOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+
+        {logsOpen && (
+          <div className="px-5 pb-4 border-t border-border/40">
+            {commands.length > 0 && (
+              <div className="pt-3 pb-2 space-y-1.5">
+                {commands.map((command, index) => (
+                  <pre
+                    key={`${command}-${index}`}
+                    className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg border border-border/50 bg-card/50 p-2.5 font-mono text-[11px] leading-relaxed text-muted-foreground"
+                  >
+                    {command}
+                  </pre>
+                ))}
+              </div>
+            )}
+            {logs.length === 0 ? (
+              <p className="pt-3 font-mono text-[11px] text-muted-foreground">
+                {captions.processing.logs.waiting}
+              </p>
+            ) : (
+              <div className="pt-3 max-h-[240px] space-y-0.5 overflow-y-auto font-mono text-[11px] text-muted-foreground">
+                {logs.map((line, index) => (
+                  <p key={`${line}-${index}`} className="break-words leading-relaxed">
+                    {line}
+                  </p>
+                ))}
+                <div ref={logsEndRef} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Output files */}
+      {outputFiles.length > 0 && (
+        <div className="glass-panel rounded-2xl p-6 mb-4">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+            {captions.processing.outputsTitle}
+          </h3>
+          <div className="space-y-2">
+            {outputFiles.map((outputFile) => (
+              <div
+                key={outputFile.path}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-card/50 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium uppercase">{outputFile.format}</p>
+                  <p className="truncate font-mono text-[11px] text-muted-foreground">
+                    {outputFile.path}
+                  </p>
+                </div>
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                  {formatBytes(outputFile.sizeBytes)}
+                </span>
+              </div>
+            ))}
+          </div>
+          {outputDirectory && (
+            <p className="mt-3 truncate font-mono text-[11px] text-muted-foreground">
+              {outputDirectory}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           {!isComplete && (
-            <>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-                <Pause className="w-3.5 h-3.5" /> {captions.processing.actions.pause}
-              </Button>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-destructive">
-                <X className="w-3.5 h-3.5" /> {captions.processing.actions.cancel}
-              </Button>
-            </>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-destructive" disabled>
+              <X className="w-3.5 h-3.5" /> {captions.processing.actions.cancel}
+            </Button>
           )}
         </div>
-        {isComplete && (
+        {isComplete && !isFailed && (
           <div className="flex gap-2">
             <Link to="/export">
               <Button variant="secondary" className="gap-2">
@@ -159,3 +421,4 @@ export default function Processing() {
     </div>
   )
 }
+

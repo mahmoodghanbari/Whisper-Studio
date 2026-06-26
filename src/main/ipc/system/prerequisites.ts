@@ -29,8 +29,7 @@ export const prerequisiteIds: readonly PrerequisiteCheckId[] = [
   'python',
   'ffmpeg',
   'cuda',
-  'faster-whisper',
-  'ctranslate2',
+  'openai-whisper',
   'torch'
 ]
 
@@ -39,8 +38,7 @@ let prerequisiteCache: { checkedAt: number; value: PrerequisiteCheck[] } | null 
 let prerequisiteRequest: Promise<PrerequisiteCheck[]> | null = null
 
 const pipInstallPackages: Partial<Record<PrerequisiteCheckId, string>> = {
-  'faster-whisper': 'faster-whisper',
-  ctranslate2: 'ctranslate2',
+  'openai-whisper': 'openai-whisper',
   torch: 'torch'
 }
 
@@ -122,11 +120,17 @@ async function runCommandCandidate(
 }
 
 function parseVersion(output: string): string | null {
-  return output.match(/\d+(?:\.\d+)+(?:[A-Za-z0-9.+-]*)?/)?.[0] ?? null
+  // Match dotted versions (3.11.0) or date versions (20231117)
+  return (
+    output.match(/\d+(?:\.\d+)+(?:[A-Za-z0-9.+-]*)?/)?.[0] ?? output.match(/\b\d{8}\b/)?.[0] ?? null
+  )
 }
 
 function compareVersions(actual: string, required: readonly number[]): number {
-  const actualParts = actual.split(/[^\d]+/).filter(Boolean).map(Number)
+  const actualParts = actual
+    .split(/[^\d]+/)
+    .filter(Boolean)
+    .map(Number)
 
   for (let index = 0; index < required.length; index += 1) {
     const actualPart = actualParts[index] ?? 0
@@ -195,11 +199,10 @@ async function checkCommandVersion(
 async function checkPythonPackages(python: CommandResult | null): Promise<PrerequisiteCheck[]> {
   const packages: readonly {
     id: PrerequisiteCheckId
-    minimum: readonly number[]
+    minimum?: readonly number[]
     packageName: string
   }[] = [
-    { id: 'faster-whisper', packageName: 'faster-whisper', minimum: [1, 0] },
-    { id: 'ctranslate2', packageName: 'ctranslate2', minimum: [4, 0] },
+    { id: 'openai-whisper', packageName: 'openai-whisper' },
     { id: 'torch', packageName: 'torch', minimum: [2, 0] }
   ]
 

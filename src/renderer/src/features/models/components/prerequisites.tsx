@@ -8,7 +8,6 @@ import {
   Cpu,
   Code2,
   Video,
-  Zap,
   Package,
   Download,
   ExternalLink
@@ -40,8 +39,7 @@ const prerequisiteIcons: Record<PrerequisiteId, LucideIcon> = {
   python: Code2,
   ffmpeg: Video,
   cuda: Cpu,
-  'faster-whisper': Package,
-  ctranslate2: Zap,
+  'openai-whisper': Package,
   torch: Terminal
 }
 const externalInstallerIds = new Set<PrerequisiteId>(['python', 'ffmpeg', 'cuda'])

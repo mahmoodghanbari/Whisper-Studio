@@ -91,7 +91,7 @@ export default function NewTranscription({ desktop }: NewTranscriptionProps) {
 
       {/* Step Content */}
       <div key={step}>
-        {step === 1 && <StepFiles file={file} setFile={setFile} />}
+        {step === 1 && <StepFiles desktop={desktop} file={file} setFile={setFile} />}
         {step === 2 && (
           <StepSettings desktop={desktop} settings={settings} setSettings={setSettings} />
         )}
@@ -103,7 +103,14 @@ export default function NewTranscription({ desktop }: NewTranscriptionProps) {
             settings={settings}
           />
         )}
-        {step === 4 && <Processing />}
+        {step === 4 && (
+          <Processing
+            desktop={desktop}
+            file={file}
+            outputFormats={outputFormats}
+            settings={settings}
+          />
+        )}
       </div>
 
       {/* Navigation */}

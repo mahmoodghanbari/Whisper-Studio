@@ -24,7 +24,7 @@ interface AvailableModelsProps {
 }
 
 function normalizeModelName(value: string): string {
-  return value.toLowerCase().replace(/^faster-whisper-/, '')
+  return value.toLowerCase()
 }
 
 function parseSize(size: string): number {

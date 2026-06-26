@@ -74,10 +74,17 @@ const browserDesktopApi: DesktopApi = {
     ok: false,
     stderr: 'Model deletion is available in the Electron desktop app.'
   }),
+  getFilePath: (file: unknown): string => {
+    if (file instanceof File) {
+      return file.name
+    }
+
+    return ''
+  },
   onModelDownloadProgress: () => () => undefined,
   selectWhisperFile: async () => ({ canceled: true }),
-  transcribeWithWhisper: async (filePath) => ({
-    command: `python.exe -u -m whisper "${filePath}" --language fa`,
+  transcribeWithWhisper: async (request) => ({
+    command: `python.exe -u -c faster_whisper "${request.filePath}"`,
     exitCode: 1,
     stdout: '',
     stderr: 'Whisper transcription is available in the Electron desktop app.'

@@ -7,6 +7,7 @@ import {
   type SetStateAction
 } from 'react'
 import { Upload, FileAudio, FileVideo, X, Clock, HardDrive } from 'lucide-react'
+import type { DesktopApi } from '@shared/ipc'
 import { formatBytes } from '@/lib/utils'
 import { captions } from '@/captions'
 
@@ -19,6 +20,7 @@ export interface TranscriptionFile {
 }
 
 interface StepFilesProps {
+  desktop: DesktopApi
   file: TranscriptionFile | null
   setFile: Dispatch<SetStateAction<TranscriptionFile | null>>
 }
@@ -59,18 +61,20 @@ function loadMediaDuration(raw: File): Promise<string> {
   })
 }
 
-async function buildTranscriptionFile(raw: File): Promise<TranscriptionFile> {
+async function buildTranscriptionFile(raw: File, desktop: DesktopApi): Promise<TranscriptionFile> {
   const duration = await loadMediaDuration(raw)
+  const filePath = desktop.getFilePath(raw)
+
   return {
     duration,
     name: raw.name,
-    path: (raw as File & { path?: string }).path ?? raw.name,
+    path: filePath || raw.name,
     sizeBytes: raw.size,
     type: getMediaType(raw)
   }
 }
 
-export default function StepFiles({ file, setFile }: StepFilesProps): JSX.Element {
+export default function StepFiles({ desktop, file, setFile }: StepFilesProps): JSX.Element {
   const [isDragOver, setIsDragOver] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -80,12 +84,12 @@ export default function StepFiles({ file, setFile }: StepFilesProps): JSX.Elemen
     async (raw: File): Promise<void> => {
       setIsLoading(true)
       try {
-        setFile(await buildTranscriptionFile(raw))
+        setFile(await buildTranscriptionFile(raw, desktop))
       } finally {
         setIsLoading(false)
       }
     },
-    [setFile]
+    [desktop, setFile]
   )
 
   const handleDrag = useCallback((e: DragEvent<HTMLDivElement>, over: boolean) => {

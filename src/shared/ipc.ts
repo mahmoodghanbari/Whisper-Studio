@@ -43,13 +43,7 @@ export interface SystemStatus {
   status: string
 }
 
-export type PrerequisiteCheckId =
-  | 'python'
-  | 'ffmpeg'
-  | 'cuda'
-  | 'faster-whisper'
-  | 'ctranslate2'
-  | 'torch'
+export type PrerequisiteCheckId = 'python' | 'ffmpeg' | 'cuda' | 'openai-whisper' | 'torch'
 
 export type PrerequisiteCheckStatus = 'ok' | 'missing'
 
@@ -112,10 +106,31 @@ export interface WhisperFileSelection {
 export interface WhisperTranscriptionResult {
   command: string
   exitCode: number | null
+  outputDirectory?: string
+  outputFiles?: WhisperOutputFile[]
   stdout: string
   stderr: string
   transcript?: string
   transcriptPath?: string
+}
+
+export interface WhisperTranscriptionRequest {
+  compute: string
+  diarization: boolean
+  filePath: string
+  formats: string[]
+  language: string
+  model: string
+  noiseReduction: boolean
+  removeSilence: boolean
+  translate: boolean
+  wordTimestamps: boolean
+}
+
+export interface WhisperOutputFile {
+  format: string
+  path: string
+  sizeBytes: number
 }
 
 export interface WhisperOutputChunk {
@@ -127,7 +142,6 @@ export type WhisperProgressPhase =
   | 'checking-command'
   | 'checking-whisper'
   | 'sending-command'
-  | 'waiting'
   | 'transcribing'
   | 'complete'
   | 'error'
@@ -149,11 +163,14 @@ export interface DesktopApi {
   getDownloadedModels: () => Promise<DownloadedWhisperModelsResult>
   downloadModel: (repoId: string) => Promise<WhisperModelActionResult>
   deleteModel: (id: string) => Promise<WhisperModelActionResult>
+  getFilePath: (file: unknown) => string
   onModelDownloadProgress: (
     callback: (progress: WhisperModelDownloadProgress) => void
   ) => () => void
   selectWhisperFile: () => Promise<WhisperFileSelection>
-  transcribeWithWhisper: (filePath: string) => Promise<WhisperTranscriptionResult>
+  transcribeWithWhisper: (
+    request: WhisperTranscriptionRequest
+  ) => Promise<WhisperTranscriptionResult>
   onWhisperOutput: (callback: (chunk: WhisperOutputChunk) => void) => () => void
   onWhisperProgress: (callback: (update: WhisperProgressUpdate) => void) => () => void
   windowControls: {

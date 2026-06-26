@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import {
   IPC_CHANNELS,
   type AppInfo,
@@ -14,6 +14,7 @@ import {
   type WhisperModelDownloadProgress,
   type WhisperOutputChunk,
   type WhisperProgressUpdate,
+  type WhisperTranscriptionRequest,
   type WhisperTranscriptionResult
 } from '../shared/ipc'
 
@@ -31,6 +32,8 @@ const desktopApi: DesktopApi = {
     ipcRenderer.invoke(IPC_CHANNELS.downloadModel, repoId) as Promise<WhisperModelActionResult>,
   deleteModel: (id: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.deleteModel, id) as Promise<WhisperModelActionResult>,
+  getFilePath: (file: unknown) =>
+    webUtils.getPathForFile(file as Parameters<typeof webUtils.getPathForFile>[0]),
   onModelDownloadProgress: (callback) => {
     const listener = (
       _event: Electron.IpcRendererEvent,
@@ -47,10 +50,10 @@ const desktopApi: DesktopApi = {
   },
   selectWhisperFile: () =>
     ipcRenderer.invoke(IPC_CHANNELS.whisperSelectFile) as Promise<WhisperFileSelection>,
-  transcribeWithWhisper: (filePath: string) =>
+  transcribeWithWhisper: (request: WhisperTranscriptionRequest) =>
     ipcRenderer.invoke(
       IPC_CHANNELS.whisperTranscribe,
-      filePath
+      request
     ) as Promise<WhisperTranscriptionResult>,
   onWhisperOutput: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, chunk: WhisperOutputChunk): void => {

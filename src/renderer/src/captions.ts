@@ -175,7 +175,7 @@ export const captions = {
     header: {
       eyebrow: 'Model Manager',
       title: 'Whisper Models',
-      subtitle: 'Download and manage Faster-Whisper transcription models',
+      subtitle: 'Download and manage OpenAI Whisper transcription models',
       storageLabel: 'Storage',
       activeLabel: 'Active',
       emptyStorageValue: '0 B',
@@ -207,7 +207,7 @@ export const captions = {
           id: 'python',
           name: 'Python',
           required: '3.8+',
-          desc: 'Runtime environment for faster-whisper'
+          desc: 'Runtime environment for Whisper'
         },
         {
           id: 'ffmpeg',
@@ -222,16 +222,10 @@ export const captions = {
           desc: 'GPU acceleration for transcription'
         },
         {
-          id: 'faster-whisper',
-          name: 'faster-whisper',
-          required: '1.0+',
-          desc: 'Core transcription library (pip)'
-        },
-        {
-          id: 'ctranslate2',
-          name: 'ctranslate2',
-          required: '4.0+',
-          desc: 'CTranslate2 inference engine'
+          id: 'openai-whisper',
+          name: 'openai-whisper',
+          required: 'any',
+          desc: 'OpenAI Whisper transcription library (pip)'
         },
         {
           id: 'torch',
@@ -264,7 +258,7 @@ export const captions = {
     },
     available: {
       title: 'Available Models',
-      subtitle: 'Download Faster-Whisper CTranslate2 models',
+      subtitle: 'Download OpenAI Whisper models',
       recommended: 'Recommended',
       languageCount: '99',
       progressSuffix: '%',
@@ -282,8 +276,8 @@ export const captions = {
         {
           id: 1,
           name: 'tiny',
-          repoId: 'Systran/faster-whisper-tiny',
-          size: '74 MB',
+          repoId: 'tiny',
+          size: '75 MB',
           params: '39M',
           speed: 'Fastest',
           accuracy: 'Low',
@@ -293,8 +287,8 @@ export const captions = {
         {
           id: 2,
           name: 'base',
-          repoId: 'Systran/faster-whisper-base',
-          size: '141 MB',
+          repoId: 'base',
+          size: '145 MB',
           params: '74M',
           speed: 'Very Fast',
           accuracy: 'Low',
@@ -304,8 +298,8 @@ export const captions = {
         {
           id: 3,
           name: 'small',
-          repoId: 'Systran/faster-whisper-small',
-          size: '464 MB',
+          repoId: 'small',
+          size: '484 MB',
           params: '244M',
           speed: 'Fast',
           accuracy: 'Medium',
@@ -315,8 +309,8 @@ export const captions = {
         {
           id: 4,
           name: 'medium',
-          repoId: 'Systran/faster-whisper-medium',
-          size: '769 MB',
+          repoId: 'medium',
+          size: '1.5 GB',
           params: '769M',
           speed: 'Medium',
           accuracy: 'High',
@@ -326,7 +320,7 @@ export const captions = {
         {
           id: 5,
           name: 'large-v2',
-          repoId: 'Systran/faster-whisper-large-v2',
+          repoId: 'large-v2',
           size: '3 GB',
           params: '1.55B',
           speed: 'Slow',
@@ -335,15 +329,26 @@ export const captions = {
           desc: 'Best accuracy, multilingual'
         },
         {
-          id: 5,
+          id: 6,
           name: 'large-v3',
-          repoId: 'Systran/faster-whisper-large-v3',
-          size: '2.9 GB',
+          repoId: 'large-v3',
+          size: '3 GB',
           params: '1.55B',
           speed: 'Slow',
           accuracy: 'Highest',
           recommended: true,
-          desc: 'Best accuracy, multilingual'
+          desc: 'Latest large model with improved accuracy'
+        },
+        {
+          id: 7,
+          name: 'turbo',
+          repoId: 'turbo',
+          size: '1.6 GB',
+          params: '809M',
+          speed: 'Fast',
+          accuracy: 'High',
+          recommended: false,
+          desc: 'Fast with near large-v3 accuracy'
         }
       ]
     }
@@ -515,12 +520,12 @@ export const captions = {
     settings: {
       recommendedBanner: {
         emphasis: 'CPU mode is selected by default.',
-        detail: 'Choose one of your downloaded Faster-Whisper models before starting transcription.'
+        detail: 'Choose one of your downloaded OpenAI Whisper models before starting transcription.'
       },
       recommendedBadge: 'Recommended',
       noDownloadedModelsAlert:
         'No downloaded models were found. Download a model before starting transcription.',
-      noDownloadedModelsTooltip: 'Go to Model Manager and download a Faster-Whisper model first.',
+      noDownloadedModelsTooltip: 'Go to Model Manager and download an OpenAI Whisper model first.',
       modelPlaceholder: 'Select a model',
       goToModels: 'Go to Models',
       languageSearchPlaceholder: 'Search language...',
@@ -680,6 +685,8 @@ export const captions = {
     title: 'Processing',
     status: {
       complete: 'Transcription complete',
+      failed: 'Transcription failed',
+      noFile: 'No file was selected for transcription.',
       inProgress: 'Transcription in progress...'
     },
     job: {
@@ -690,6 +697,19 @@ export const captions = {
       complete: 'Complete',
       allStagesComplete: 'All stages completed successfully'
     },
+    commandLogTitle: 'Command Log',
+    diagnosticLogTitle: 'Diagnostic Log',
+    logs: {
+      compute: 'compute',
+      entries: 'entries',
+      filePath: 'file',
+      formats: 'formats',
+      model: 'model',
+      starting: 'Starting transcription request.',
+      waiting: 'Waiting for diagnostics...'
+    },
+    liveOutputTitle: 'Live Output',
+    outputsTitle: 'Generated Files',
     stagesTitle: 'Processing Stages',
     stageStatus: {
       done: 'Done',
@@ -702,11 +722,13 @@ export const captions = {
       openInStudio: 'Open in Studio'
     },
     stages: [
-      { id: 'model', label: 'Loading Model', desc: 'Initializing Large-v3 model on GPU' },
-      { id: 'extract', label: 'Extracting Audio', desc: 'Converting video to audio stream' },
-      { id: 'transcribe', label: 'Transcribing', desc: 'Processing audio with Faster-Whisper' },
-      { id: 'speaker', label: 'Speaker Detection', desc: 'Identifying speakers with diarization' },
-      { id: 'export', label: 'Exporting', desc: 'Writing output files' }
+      {
+        id: 'prepare',
+        label: 'Checking Environment',
+        desc: 'Verifying Python and openai-whisper'
+      },
+      { id: 'transcribe', label: 'Transcribing', desc: 'Processing audio with OpenAI Whisper' },
+      { id: 'export', label: 'Saving Files', desc: 'Writing output files to disk' }
     ]
   },
   export: {

@@ -1,14 +1,16 @@
-import { dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { statSync } from 'node:fs'
+import { mkdir, readdir, rm } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import {
   IPC_CHANNELS,
+  type WhisperOutputFile,
   type WhisperOutputChunk,
   type WhisperFileSelection,
   type WhisperProgressUpdate,
+  type WhisperTranscriptionRequest,
   type WhisperTranscriptionResult
 } from '../../shared/ipc'
 
@@ -29,8 +31,119 @@ const mediaExtensions = [
   'avi'
 ]
 
-function buildCommandDisplay(filePath: string): string {
-  return `python.exe -u -m whisper "${filePath}" --language fa`
+const languageCodes: Record<string, string> = {
+  afrikaans: 'af',
+  albanian: 'sq',
+  amharic: 'am',
+  arabic: 'ar',
+  armenian: 'hy',
+  assamese: 'as',
+  azerbaijani: 'az',
+  bashkir: 'ba',
+  basque: 'eu',
+  belarusian: 'be',
+  bengali: 'bn',
+  bosnian: 'bs',
+  breton: 'br',
+  bulgarian: 'bg',
+  burmese: 'my',
+  cantonese: 'yue',
+  castilian: 'es',
+  catalan: 'ca',
+  chinese: 'zh',
+  croatian: 'hr',
+  czech: 'cs',
+  danish: 'da',
+  dutch: 'nl',
+  english: 'en',
+  estonian: 'et',
+  faroese: 'fo',
+  finnish: 'fi',
+  flemish: 'nl',
+  french: 'fr',
+  galician: 'gl',
+  georgian: 'ka',
+  german: 'de',
+  greek: 'el',
+  gujarati: 'gu',
+  haitian: 'ht',
+  'haitian creole': 'ht',
+  hausa: 'ha',
+  hawaiian: 'haw',
+  hebrew: 'he',
+  hindi: 'hi',
+  hungarian: 'hu',
+  icelandic: 'is',
+  indonesian: 'id',
+  italian: 'it',
+  japanese: 'ja',
+  javanese: 'jw',
+  kannada: 'kn',
+  kazakh: 'kk',
+  khmer: 'km',
+  korean: 'ko',
+  lao: 'lo',
+  latin: 'la',
+  latvian: 'lv',
+  letzeburgesch: 'lb',
+  lingala: 'ln',
+  lithuanian: 'lt',
+  luxembourgish: 'lb',
+  macedonian: 'mk',
+  malagasy: 'mg',
+  malay: 'ms',
+  malayalam: 'ml',
+  maltese: 'mt',
+  mandarin: 'zh',
+  maori: 'mi',
+  marathi: 'mr',
+  moldavian: 'ro',
+  moldovan: 'ro',
+  mongolian: 'mn',
+  myanmar: 'my',
+  nepali: 'ne',
+  norwegian: 'no',
+  nynorsk: 'nn',
+  occitan: 'oc',
+  panjabi: 'pa',
+  pashto: 'ps',
+  persian: 'fa',
+  polish: 'pl',
+  portuguese: 'pt',
+  punjabi: 'pa',
+  pushto: 'ps',
+  romanian: 'ro',
+  russian: 'ru',
+  sanskrit: 'sa',
+  serbian: 'sr',
+  shona: 'sn',
+  sindhi: 'sd',
+  sinhala: 'si',
+  sinhalese: 'si',
+  slovak: 'sk',
+  slovenian: 'sl',
+  somali: 'so',
+  spanish: 'es',
+  sundanese: 'su',
+  swahili: 'sw',
+  swedish: 'sv',
+  tagalog: 'tl',
+  tajik: 'tg',
+  tamil: 'ta',
+  tatar: 'tt',
+  telugu: 'te',
+  thai: 'th',
+  tibetan: 'bo',
+  turkish: 'tr',
+  turkmen: 'tk',
+  ukrainian: 'uk',
+  urdu: 'ur',
+  uzbek: 'uz',
+  valencian: 'ca',
+  vietnamese: 'vi',
+  welsh: 'cy',
+  yiddish: 'yi',
+  yoruba: 'yo'
 }
 
 function getPythonEnv(): NodeJS.ProcessEnv {
@@ -44,8 +157,9 @@ function getPythonEnv(): NodeJS.ProcessEnv {
 
 function runPythonCheck(args: string[]): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn('python.exe', args, {
+    const child = spawn('python', args, {
       env: getPythonEnv(),
+      timeout: 10000,
       windowsHide: true
     })
     const stdoutChunks: Buffer[] = []
@@ -70,181 +184,207 @@ function runPythonCheck(args: string[]): Promise<{ stdout: string; stderr: strin
         return
       }
 
-      reject(new Error((stderr || stdout || `python.exe exited with code ${exitCode}`).trim()))
+      reject(new Error((stderr || stdout || `python exited with code ${exitCode}`).trim()))
     })
   })
 }
 
-function getTranscriptPath(filePath: string): string {
-  const extension = extname(filePath)
-  const fileName = basename(filePath, extension)
+function normalizeLanguage(language: string): string | null {
+  const normalizedLanguage = language.trim().toLowerCase()
 
-  return join(dirname(filePath), `${fileName}.txt`)
+  if (!normalizedLanguage || normalizedLanguage === 'auto') {
+    return null
+  }
+
+  if (/^[a-z]{2,3}$/.test(normalizedLanguage)) {
+    return normalizedLanguage
+  }
+
+  return languageCodes[normalizedLanguage] ?? null
 }
 
-async function readTranscript(
-  filePath: string
-): Promise<Pick<WhisperTranscriptionResult, 'transcript' | 'transcriptPath'>> {
-  const transcriptPath = getTranscriptPath(filePath)
+function sanitizeFileName(value: string): string {
+  return value
+    .split('')
+    .map((character) => {
+      if (character.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(character)) {
+        return '-'
+      }
 
-  if (!existsSync(transcriptPath)) {
-    return {}
+      return character
+    })
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function getOutputDirectory(): string {
+  return join(app.getPath('documents'), 'Whisper Studio', 'exports')
+}
+
+function getTimestamp(): string {
+  return new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '').replace('T', '-')
+}
+
+function getFileSize(path: string): number {
+  try {
+    return statSync(path).size
+  } catch {
+    return 0
+  }
+}
+
+function buildArgs(request: WhisperTranscriptionRequest, outputDir: string): string[] {
+  const device = request.compute === 'gpu' ? 'cuda' : 'cpu'
+  const language = normalizeLanguage(request.language)
+  const model = request.model || 'base'
+
+  const args = [
+    request.filePath,
+    '--model',
+    model,
+    '--output_format',
+    'all',
+    '--output_dir',
+    outputDir,
+    '--device',
+    device,
+    '--verbose',
+    'True'
+  ]
+
+  if (language) {
+    args.push('--language', language)
   }
 
-  return {
-    transcriptPath,
-    transcript: await readFile(transcriptPath, 'utf8')
+  if (request.translate) {
+    args.push('--task', 'translate')
   }
+
+  if (request.wordTimestamps) {
+    args.push('--word_timestamps', 'True')
+  }
+
+  return args
+}
+
+async function collectOutputFiles(
+  outputDir: string,
+  requestedFormats: string[]
+): Promise<WhisperOutputFile[]> {
+  const supportedFormats = new Set(['txt', 'srt', 'vtt', 'json', 'tsv'])
+  const wanted = new Set(requestedFormats.filter((f) => supportedFormats.has(f)))
+
+  const entries = await readdir(outputDir, { withFileTypes: true }).catch(() => [])
+  const files: WhisperOutputFile[] = []
+  const toDelete: string[] = []
+
+  for (const entry of entries) {
+    if (!entry.isFile()) continue
+
+    const ext = extname(entry.name).slice(1).toLowerCase()
+    const path = join(outputDir, entry.name)
+
+    if (wanted.size > 0 && !wanted.has(ext)) {
+      toDelete.push(path)
+      continue
+    }
+
+    files.push({ format: ext, path, sizeBytes: getFileSize(path) })
+  }
+
+  await Promise.all(toDelete.map((p) => rm(p, { force: true }).catch(() => undefined)))
+
+  return files
 }
 
 async function runWhisper(
-  filePath: string,
+  request: WhisperTranscriptionRequest,
   onOutput: (chunk: WhisperOutputChunk) => void,
   onProgress: (update: WhisperProgressUpdate) => void
 ): Promise<WhisperTranscriptionResult> {
-  const command = buildCommandDisplay(filePath)
-
-  try {
-    onProgress({
-      phase: 'checking-command',
-      state: 'active',
-      message: 'Checking python.exe command.'
-    })
-    const pythonVersion = await runPythonCheck(['--version'])
-
-    onProgress({
-      phase: 'checking-command',
-      state: 'complete',
-      message: (pythonVersion.stdout || pythonVersion.stderr || 'python.exe is available.').trim()
-    })
-    onProgress({
-      phase: 'checking-whisper',
-      state: 'active',
-      message: 'Checking Whisper module.'
-    })
-    await runPythonCheck(['-u', '-c', 'import whisper; print("Whisper module is ready")'])
-    onProgress({
-      phase: 'checking-whisper',
-      state: 'complete',
-      message: 'Whisper module is ready.'
-    })
-    onProgress({
-      phase: 'sending-command',
-      state: 'active',
-      message: 'Sending Whisper command.'
-    })
-  } catch (error) {
-    onProgress({
-      phase: 'error',
-      state: 'error',
-      message: error instanceof Error ? error.message : 'Unable to start Whisper.'
-    })
-    throw error
+  if (typeof request.filePath !== 'string' || !request.filePath.trim()) {
+    throw new TypeError('A valid media file path is required for transcription.')
   }
 
+  // Skip slow pre-checks — emit all environment phases immediately and go straight to transcribing
+  onProgress({ phase: 'checking-command', state: 'complete', message: 'Starting transcription.' })
+  onProgress({ phase: 'checking-whisper', state: 'complete', message: 'Environment ready.' })
+
+  // Build output dir and CLI args
+  const extension = extname(request.filePath)
+  const baseName = sanitizeFileName(basename(request.filePath, extension)) || 'transcript'
+  const outputDirectory = join(getOutputDirectory(), `${baseName}-${getTimestamp()}`)
+  await mkdir(outputDirectory, { recursive: true })
+
+  const args = buildArgs(request, outputDirectory)
+  const command = `whisper ${args.join(' ')}`
+
+  onProgress({ phase: 'sending-command', state: 'complete', message: command })
+
   return new Promise((resolve, reject) => {
-    const child = spawn('python.exe', ['-u', '-m', 'whisper', filePath, '--language', 'fa'], {
-      cwd: dirname(filePath),
+    const child = spawn('whisper', args, {
+      cwd: dirname(request.filePath),
       env: getPythonEnv(),
       windowsHide: true
     })
+
     const stdoutChunks: Buffer[] = []
     const stderrChunks: Buffer[] = []
     const stdoutDecoder = new StringDecoder('utf8')
     const stderrDecoder = new StringDecoder('utf8')
-    let hasStartedTranscribing = false
 
-    onProgress({
-      phase: 'sending-command',
-      state: 'complete',
-      message: command
-    })
-    onProgress({
-      phase: 'waiting',
-      state: 'active',
-      message: 'Waiting for Whisper to load the model and begin transcription.'
-    })
+    // Emit transcribing immediately — model loading produces no output for up to 60s
+    onProgress({ phase: 'transcribing', state: 'active', message: 'Loading model and transcribing...' })
 
     child.stdout.on('data', (chunk: Buffer) => {
       stdoutChunks.push(chunk)
       const text = stdoutDecoder.write(chunk)
+      if (!text) return
 
-      if (text) {
-        if (!hasStartedTranscribing && text.trim()) {
-          hasStartedTranscribing = true
-          onProgress({
-            phase: 'waiting',
-            state: 'complete',
-            message: 'Whisper started printing transcript segments.'
-          })
-          onProgress({
-            phase: 'transcribing',
-            state: 'active',
-            message: 'Showing transcript lines as Whisper emits them.'
-          })
-        }
-
-        onOutput({ stream: 'stdout', text })
-      }
+      onOutput({ stream: 'stdout', text })
     })
 
     child.stderr.on('data', (chunk: Buffer) => {
       stderrChunks.push(chunk)
       const text = stderrDecoder.write(chunk)
+      if (!text) return
 
-      if (text) {
-        onOutput({ stream: 'stderr', text })
-      }
+      onOutput({ stream: 'stderr', text })
     })
 
     child.on('error', (error) => {
-      onProgress({
-        phase: 'error',
-        state: 'error',
-        message: error.message
-      })
+      onProgress({ phase: 'error', state: 'error', message: error.message })
       reject(error)
     })
 
     child.on('close', (exitCode) => {
-      const remainingStdout = stdoutDecoder.end()
-      const remainingStderr = stderrDecoder.end()
-
-      if (remainingStdout) {
-        onOutput({ stream: 'stdout', text: remainingStdout })
-      }
-
-      if (remainingStderr) {
-        onOutput({ stream: 'stderr', text: remainingStderr })
-      }
+      const remaining = stdoutDecoder.end()
+      const remainingErr = stderrDecoder.end()
+      if (remaining) onOutput({ stream: 'stdout', text: remaining })
+      if (remainingErr) onOutput({ stream: 'stderr', text: remainingErr })
 
       const stdout = Buffer.concat(stdoutChunks).toString('utf8')
       const stderr = Buffer.concat(stderrChunks).toString('utf8')
 
-      readTranscript(filePath)
-        .then((transcriptResult) => {
-          if (exitCode === 0 && hasStartedTranscribing) {
-            onProgress({
-              phase: 'transcribing',
-              state: 'complete',
-              message: 'Transcript lines received.'
-            })
-          }
+      onProgress({
+        phase: exitCode === 0 ? 'complete' : 'error',
+        state: exitCode === 0 ? 'complete' : 'error',
+        message:
+          exitCode === 0
+            ? 'Transcription complete.'
+            : `Whisper exited with code ${exitCode ?? 'unknown'}.`
+      })
 
-          onProgress({
-            phase: exitCode === 0 ? 'complete' : 'error',
-            state: exitCode === 0 ? 'complete' : 'error',
-            message:
-              exitCode === 0
-                ? 'Transcription complete.'
-                : `Whisper exited with code ${exitCode ?? 'unknown'}.`
-          })
+      collectOutputFiles(outputDirectory, request.formats ?? [])
+        .then((outputFiles) => {
           resolve({
             command,
             exitCode,
-            stdout,
+            outputDirectory,
+            outputFiles,
             stderr,
-            ...transcriptResult
+            stdout
           })
         })
         .catch(reject)
@@ -283,9 +423,12 @@ export function registerWhisperHandlers(): void {
 
   ipcMain.handle(
     IPC_CHANNELS.whisperTranscribe,
-    async (event: IpcMainInvokeEvent, filePath: string): Promise<WhisperTranscriptionResult> => {
+    async (
+      event: IpcMainInvokeEvent,
+      request: WhisperTranscriptionRequest
+    ): Promise<WhisperTranscriptionResult> => {
       return runWhisper(
-        filePath,
+        request,
         (chunk) => {
           event.sender.send(IPC_CHANNELS.whisperOutputChunk, chunk)
         },
