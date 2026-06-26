@@ -1,4 +1,4 @@
-import { Plus, Sparkles, ArrowUpRight } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/app/navigation'
 
@@ -8,10 +8,8 @@ export default function WelcomeHeader() {
 
   return (
     <div className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-primary/10 via-card to-card p-8">
-      {/* Decorative glow */}
       <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -left-20 w-64 h-64 rounded-full bg-chart-2/5 blur-3xl pointer-events-none" />
-
       <div className="relative flex items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 mb-3">
@@ -32,13 +30,6 @@ export default function WelcomeHeader() {
               <Plus className="w-4 h-4" />
               New Transcription
             </Button>
-          </Link>
-          <Link
-            to="/ai"
-            className="group flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Explore AI Features
-            <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </Link>
         </div>
       </div>

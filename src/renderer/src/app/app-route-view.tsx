@@ -21,7 +21,7 @@ export function AppRouteView({ activeRoute, desktop }: AppRouteViewProps): JSX.E
     case 'studio':
       return <Studio desktop={desktop} />
     case 'export':
-      return <Export />
+      return <Export desktop={desktop} />
     case 'models':
       return <Models desktop={desktop} />
     case 'dashboard':

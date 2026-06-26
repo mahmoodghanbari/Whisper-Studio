@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { DesktopApi, TranscriptionRecord } from '@shared/ipc'
-import { Mic, Clock, FileAudio, MoreHorizontal, Trash2, Loader2, FolderOpen } from 'lucide-react'
+import { Mic, Clock, FileAudio, Trash2, Loader2, FolderOpen } from 'lucide-react'
 import { setStudioRecord } from '@/lib/studio-store'
 import { useAppRoute } from '@/app/use-app-route'
+import { Button } from '@/components/ui/button'
 
 const ACCENTS = [
   'from-primary/20 to-primary/5',
@@ -40,7 +41,7 @@ export default function TranscriptionGrid({ desktop }: TranscriptionGridProps) {
   const [records, setRecords] = useState<TranscriptionRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
   const { navigateTo } = useAppRoute()
 
   function openInStudio(item: TranscriptionRecord) {
@@ -56,8 +57,8 @@ export default function TranscriptionGrid({ desktop }: TranscriptionGridProps) {
   }, [desktop])
 
   async function handleDelete(id: string) {
+    setConfirmId(null)
     setDeletingId(id)
-    setMenuOpenId(null)
     await desktop.deleteTranscription(id)
     setRecords((prev) => prev.filter((r) => r.id !== id))
     setDeletingId(null)
@@ -86,6 +87,26 @@ export default function TranscriptionGrid({ desktop }: TranscriptionGridProps) {
 
   return (
     <div>
+      {/* Confirmation modal */}
+      {confirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-[15px] font-semibold mb-1">Delete transcription?</h3>
+            <p className="text-[13px] text-muted-foreground mb-5">
+              This will permanently remove the transcription and all its files. This cannot be
+              undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setConfirmId(null)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" onClick={() => void handleDelete(confirmId)}>
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Recent Transcriptions</h2>
@@ -120,30 +141,15 @@ export default function TranscriptionGrid({ desktop }: TranscriptionGridProps) {
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <div className="relative">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setMenuOpenId(menuOpenId === item.id ? null : item.id)
-                      }}
-                      className="p-1.5 rounded-md bg-background/60 backdrop-blur-sm text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreHorizontal className="w-3.5 h-3.5" />
-                    </button>
-                    {menuOpenId === item.id && (
-                      <div className="absolute right-0 top-full mt-1 z-10 min-w-[130px] rounded-lg border border-border bg-popover shadow-lg py-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            void handleDelete(item.id)
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-destructive hover:bg-destructive/10 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setConfirmId(item.id)
+                    }}
+                    className="p-1.5 rounded-md bg-background/60 backdrop-blur-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 )}
               </div>
             </div>

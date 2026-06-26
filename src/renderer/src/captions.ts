@@ -142,13 +142,9 @@ export const captions = {
         title: 'Workspace',
         items: [
           { label: 'Your Workspace', routeId: 'dashboard' },
-          { label: 'New Transcription', routeId: 'new' }
+          { label: 'New Transcription', routeId: 'new' },
+          { label: 'Whisper Models', routeId: 'models' }
         ]
-      },
-
-      {
-        title: 'Models',
-        items: [{ label: 'Model Manager', routeId: 'models' }]
       }
     ]
   },
@@ -525,7 +521,8 @@ export const captions = {
       recommendedBadge: 'Recommended',
       noDownloadedModelsAlert:
         'No downloaded models were found. Download a model before starting transcription.',
-      noDownloadedModelsTooltip: 'Go to Model Manager and download an OpenAI Whisper model first.',
+      noDownloadedModelsTooltip:
+        'Go to Whisper Models Page and download an OpenAI Whisper model first.',
       modelPlaceholder: 'Select a model',
       goToModels: 'Go to Models',
       languageSearchPlaceholder: 'Search language...',

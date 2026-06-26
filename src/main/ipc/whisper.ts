@@ -1,13 +1,14 @@
 import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { spawn } from 'node:child_process'
 import { statSync } from 'node:fs'
-import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import {
   IPC_CHANNELS,
   type TranscriptionRecord,
   type WhisperOutputFile,
+  type WhisperSegment,
   type WhisperOutputChunk,
   type WhisperFileSelection,
   type WhisperProgressUpdate,
@@ -245,7 +246,7 @@ function buildArgs(request: WhisperTranscriptionRequest, outputDir: string): str
     '--model',
     model,
     '--output_format',
-    'all',
+    'json',
     '--output_dir',
     outputDir,
     '--device',
@@ -269,34 +270,32 @@ function buildArgs(request: WhisperTranscriptionRequest, outputDir: string): str
   return args
 }
 
-async function collectOutputFiles(
+async function parseWhisperJson(
   outputDir: string,
-  requestedFormats: string[]
-): Promise<WhisperOutputFile[]> {
-  const supportedFormats = new Set(['txt', 'srt', 'vtt', 'json', 'tsv'])
-  const wanted = new Set(requestedFormats.filter((f) => supportedFormats.has(f)))
-
-  const entries = await readdir(outputDir, { withFileTypes: true }).catch(() => [])
-  const files: WhisperOutputFile[] = []
-  const toDelete: string[] = []
-
-  for (const entry of entries) {
-    if (!entry.isFile()) continue
-
-    const ext = extname(entry.name).slice(1).toLowerCase()
-    const path = join(outputDir, entry.name)
-
-    if (wanted.size > 0 && !wanted.has(ext)) {
-      toDelete.push(path)
-      continue
+  sourceFileName: string
+): Promise<{ segments: WhisperSegment[]; jsonFile: WhisperOutputFile | null }> {
+  const baseName = sourceFileName.replace(/\.[^.]+$/, '')
+  const jsonPath = join(outputDir, `${baseName}.json`)
+  try {
+    const raw = await readFile(jsonPath, 'utf8')
+    const parsed = JSON.parse(raw) as {
+      segments?: Array<{ id: number; start: number; end: number; text: string }>
     }
-
-    files.push({ format: ext, path, sizeBytes: getFileSize(path) })
+    const segments: WhisperSegment[] = (parsed.segments ?? []).map((s, i) => ({
+      id: i + 1,
+      start: s.start,
+      end: s.end,
+      text: s.text.trim()
+    }))
+    const jsonFile: WhisperOutputFile = {
+      format: 'json',
+      path: jsonPath,
+      sizeBytes: getFileSize(jsonPath)
+    }
+    return { segments, jsonFile }
+  } catch {
+    return { segments: [], jsonFile: null }
   }
-
-  await Promise.all(toDelete.map((p) => rm(p, { force: true }).catch(() => undefined)))
-
-  return files
 }
 
 async function runWhisper(
@@ -381,8 +380,8 @@ async function runWhisper(
             : `Whisper exited with code ${exitCode ?? 'unknown'}.`
       })
 
-      collectOutputFiles(outputDirectory, request.formats ?? [])
-        .then(async (outputFiles) => {
+      parseWhisperJson(outputDirectory, basename(request.filePath))
+        .then(async ({ segments, jsonFile }) => {
           const record: TranscriptionRecord = {
             id: basename(outputDirectory),
             sourceFileName: basename(request.filePath),
@@ -391,8 +390,9 @@ async function runWhisper(
             language: request.language || 'auto',
             compute: request.compute,
             outputDirectory,
-            outputFiles,
-            durationSeconds: null,
+            outputFiles: jsonFile ? [jsonFile] : [],
+            segments,
+            durationSeconds: segments.length > 0 ? segments[segments.length - 1].end : null,
             createdAt: Date.now(),
             exitCode
           }
@@ -401,7 +401,15 @@ async function runWhisper(
             JSON.stringify(record, null, 2),
             'utf8'
           ).catch(() => undefined)
-          resolve({ command, exitCode, outputDirectory, outputFiles, stderr, stdout })
+          resolve({
+            command,
+            exitCode,
+            outputDirectory,
+            outputFiles: record.outputFiles,
+            record,
+            stderr,
+            stdout
+          })
         })
         .catch(reject)
     })
@@ -464,9 +472,21 @@ export function registerWhisperHandlers(): void {
       if (!entry.isDirectory()) continue
       const metaPath = join(exportsDir, entry.name, 'whisper-studio.json')
       try {
-        const { readFile } = await import('node:fs/promises')
         const raw = await readFile(metaPath, 'utf8')
-        records.push(JSON.parse(raw) as TranscriptionRecord)
+        const rec = JSON.parse(raw) as TranscriptionRecord
+        // Backfill segments for old records that predate this field
+        if (!rec.segments || rec.segments.length === 0) {
+          const { segments } = await parseWhisperJson(
+            join(exportsDir, entry.name),
+            rec.sourceFileName
+          )
+          rec.segments = segments
+          // If we found segments, persist them so we don't re-parse next time
+          if (segments.length > 0) {
+            await writeFile(metaPath, JSON.stringify(rec, null, 2), 'utf8').catch(() => undefined)
+          }
+        }
+        records.push(rec)
       } catch {
         // skip folders without metadata
       }
@@ -494,6 +514,14 @@ export function registerWhisperHandlers(): void {
     async (_event: IpcMainInvokeEvent, filePath: string): Promise<string> => {
       const { readFile } = await import('node:fs/promises')
       return readFile(filePath, 'utf8')
+    }
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.writeTextFile,
+    async (_event: IpcMainInvokeEvent, filePath: string, content: string): Promise<void> => {
+      const { writeFile } = await import('node:fs/promises')
+      await writeFile(filePath, content, 'utf8')
     }
   )
 }

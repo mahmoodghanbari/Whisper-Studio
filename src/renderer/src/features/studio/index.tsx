@@ -3,25 +3,14 @@ import { Link } from '@/app/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { captions } from '@/captions'
-import {
-  Search,
-  Replace,
-  Download,
-  Check,
-  Languages,
-  Tag,
-  MessageSquare,
-  MoreHorizontal,
-  FileAudio,
-  Clock,
-  Loader2
-} from 'lucide-react'
+import { Search, Replace, Download, Check, FileAudio, Clock, Loader2, Save } from 'lucide-react'
 import AudioPlayer from '@/components/studio/audio-player'
 import SpeakerPanel from '@/components/studio/speaker-panel'
 import TranscriptSegment from '@/components/studio/transcript-segment'
 import type { DesktopApi, TranscriptionRecord } from '@shared/ipc'
-import { takeStudioRecord } from '@/lib/studio-store'
-import { parseSrt, type SrtSegment } from '@/lib/srt-parser'
+import { takeStudioRecord, setStudioRecord } from '@/lib/studio-store'
+import { useAppRoute } from '@/app/use-app-route'
+import { type SrtSegment } from '@/lib/srt-parser'
 
 interface StudioProps {
   desktop: DesktopApi
@@ -45,7 +34,32 @@ export default function Studio({ desktop }: StudioProps) {
   const [showReplace, setShowReplace] = useState(false)
   const [activeSegment, setActiveSegment] = useState<number>(1)
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null)
+  const [isDirty, setIsDirty] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle')
+  const [savedPath, setSavedPath] = useState<string>('')
+  const { navigateTo } = useAppRoute()
   const seekToRef = useRef<((s: number) => void) | null>(null)
+  // Index of next replacement candidate within matching segments
+
+  function handleExport() {
+    if (record) {
+      // Pass the current record (with latest segments) to Export
+      const exportRecord = {
+        ...record,
+        segments: segments.map((s) => ({
+          id: s.id,
+          start: s.startSeconds,
+          end: s.endSeconds,
+          text: s.text
+        }))
+      }
+      setStudioRecord(exportRecord)
+    }
+    navigateTo('export')
+  }
+
+  const replaceIndexRef = useRef<number>(0)
 
   useEffect(() => {
     const rec = takeStudioRecord()
@@ -56,22 +70,26 @@ export default function Studio({ desktop }: StudioProps) {
       return
     }
 
-    const srtFile = rec.outputFiles.find((f) => f.format === 'srt')
-    if (!srtFile) {
-      setLoading(false)
-      return
-    }
+    // Segments come embedded in the record — no file read needed
+    const segs: SrtSegment[] = (rec.segments ?? []).map((s) => ({
+      id: s.id,
+      startSeconds: s.start,
+      endSeconds: s.end,
+      time: secondsToDisplay(s.start),
+      endTime: secondsToDisplay(s.end),
+      text: s.text,
+      speaker: '',
+      name: ''
+    }))
+    setSegments(segs)
+    if (segs.length > 0) setActiveSegment(segs[0].id)
+    setLoading(false)
+  }, [])
 
-    desktop
-      .readTextFile(srtFile.path)
-      .then((content) => {
-        const parsed = parseSrt(content)
-        setSegments(parsed)
-        if (parsed.length > 0) setActiveSegment(parsed[0].id)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [desktop])
+  // Reset replace index when search query changes
+  useEffect(() => {
+    replaceIndexRef.current = 0
+  }, [searchQuery])
 
   const handleTimeUpdate = useCallback((seconds: number) => {
     setSegments((segs) => {
@@ -80,6 +98,86 @@ export default function Studio({ desktop }: StudioProps) {
       return segs
     })
   }, [])
+
+  function handleReplace() {
+    if (!searchQuery || !replaceText) return
+    const lower = searchQuery.toLowerCase()
+    const matching = segments.filter((s) => s.text.toLowerCase().includes(lower))
+    if (matching.length === 0) return
+
+    const idx = replaceIndexRef.current % matching.length
+    const target = matching[idx]
+
+    setSegments((segs) =>
+      segs.map((s) =>
+        s.id === target.id
+          ? {
+              ...s,
+              text: s.text.replace(new RegExp(escapeRegex(searchQuery), 'i'), replaceText)
+            }
+          : s
+      )
+    )
+    setActiveSegment(target.id)
+    setIsDirty(true)
+    setSaveStatus('idle')
+    replaceIndexRef.current = (idx + 1) % matching.length
+  }
+
+  function handleReplaceAll() {
+    if (!searchQuery || !replaceText) return
+    const regex = new RegExp(escapeRegex(searchQuery), 'gi')
+    const lower = searchQuery.toLowerCase()
+    let changed = false
+    const newSegments = segments.map((s) => {
+      if (!s.text.toLowerCase().includes(lower)) return s
+      changed = true
+      return { ...s, text: s.text.replace(regex, replaceText) }
+    })
+    if (changed) {
+      setSegments(newSegments)
+      setIsDirty(true)
+      setSaveStatus('idle')
+    }
+  }
+
+  async function handleSave() {
+    if (!record) return
+    if (!record.outputDirectory) {
+      console.error('[Studio] outputDirectory is missing from record:', record)
+      setSaveStatus('error')
+      return
+    }
+    setIsSaving(true)
+    try {
+      const sep = record.outputDirectory.includes('/') ? '/' : '\\'
+      const metaPath = `${record.outputDirectory}${sep}whisper-studio.json`
+
+      const updatedRecord: TranscriptionRecord = {
+        ...record,
+        editedAt: Date.now(),
+        segments: segments.map((s) => ({
+          id: s.id,
+          start: s.startSeconds,
+          end: s.endSeconds,
+          text: s.text
+        }))
+      }
+      await desktop.writeTextFile(metaPath, JSON.stringify(updatedRecord, null, 2))
+
+      console.log('[Studio] Saved to:', metaPath)
+      setSavedPath(metaPath)
+      setRecord(updatedRecord)
+      setIsDirty(false)
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 4000)
+    } catch (err) {
+      console.error('[Studio] Save failed:', err)
+      setSaveStatus('error')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const filteredSegments = useMemo(
     () =>
@@ -146,6 +244,11 @@ export default function Studio({ desktop }: StudioProps) {
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-success/10 text-success text-[10px] font-medium">
                   <Check className="w-2.5 h-2.5" /> {captions.studio.header.status}
                 </span>
+                {isDirty && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-warning/10 text-warning text-[10px] font-medium">
+                    Unsaved
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-1">
@@ -164,17 +267,37 @@ export default function Studio({ desktop }: StudioProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-              <Languages className="w-3.5 h-3.5" /> {captions.studio.actions.language}
+            <Button
+              variant={saveStatus === 'error' ? 'destructive' : isDirty ? 'default' : 'outline'}
+              size="sm"
+              className="gap-1.5 text-xs"
+              disabled={!isDirty || isSaving}
+              onClick={handleSave}
+            >
+              {isSaving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              {saveStatus === 'saved' ? 'Saved!' : saveStatus === 'error' ? 'Error' : 'Save'}
             </Button>
-            <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-              <Tag className="w-3.5 h-3.5" /> {captions.studio.actions.label}
+            {saveStatus === 'saved' && savedPath && (
+              <span
+                className="text-[10px] text-muted-foreground truncate max-w-[220px]"
+                title={savedPath}
+              >
+                → {savedPath.split(/[\\/]/).slice(-3).join(' / ')}
+              </span>
+            )}
+            <Button
+              size="sm"
+              className="gap-1.5 text-xs"
+              variant="outline"
+              disabled={!record}
+              onClick={handleExport}
+            >
+              <Download className="w-3.5 h-3.5" /> {captions.studio.actions.export}
             </Button>
-            <Link to="/export">
-              <Button size="sm" className="gap-1.5 text-xs">
-                <Download className="w-3.5 h-3.5" /> {captions.studio.actions.export}
-              </Button>
-            </Link>
           </div>
         </div>
       </div>
@@ -199,19 +322,12 @@ export default function Studio({ desktop }: StudioProps) {
               )}
             </div>
             <Button
-              variant="ghost"
+              variant={showReplace ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setShowReplace(!showReplace)}
               className="text-xs text-muted-foreground gap-1"
             >
               <Replace className="w-3.5 h-3.5" /> {captions.studio.actions.replace}
-            </Button>
-            <div className="flex-1" />
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1">
-              <MessageSquare className="w-3.5 h-3.5" /> {captions.studio.actions.comments}
-            </Button>
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1">
-              <MoreHorizontal className="w-3.5 h-3.5" />
             </Button>
           </div>
 
@@ -222,12 +338,26 @@ export default function Studio({ desktop }: StudioProps) {
                 onChange={(e) => setReplaceText(e.target.value)}
                 placeholder={captions.studio.placeholders.replace}
                 className="flex-1 max-w-sm h-8 text-[13px] bg-secondary/40 border-border/40"
+                onKeyDown={(e) => e.key === 'Enter' && handleReplace()}
               />
-              <Button variant="outline" size="sm" className="text-xs">
-                {captions.studio.actions.replace}
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                disabled={!searchQuery || !replaceText || matchCount === 0}
+                onClick={handleReplace}
+              >
+                Replace
               </Button>
-              <Button variant="outline" size="sm" className="text-xs">
-                {captions.studio.actions.replaceAll}
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                disabled={!searchQuery || !replaceText || matchCount === 0}
+                onClick={handleReplaceAll}
+              >
+                Replace All
+                {matchCount > 0 && <span className="ml-1 opacity-60">({matchCount})</span>}
               </Button>
             </div>
           )}
@@ -287,4 +417,8 @@ export default function Studio({ desktop }: StudioProps) {
       />
     </div>
   )
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

@@ -4,16 +4,17 @@ import {
   LayoutDashboard,
   Settings,
   Search,
-  ChevronLeft,
-  ChevronRight,
   AudioLines,
   Moon,
   Sun,
-  Boxes
+  Brain,
+  PanelRight,
+  PanelLeft
 } from 'lucide-react'
 
 import type { AppRouteId } from '@/app/routing'
 import { captions } from '@/captions'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const navIcons = {
   dashboard: LayoutDashboard,
@@ -21,7 +22,7 @@ const navIcons = {
   settings: Settings,
   studio: LayoutDashboard,
   export: LayoutDashboard,
-  models: Boxes
+  models: Brain
 } satisfies Record<AppRouteId, LucideIcon>
 
 const navSections = captions.sidebar.sections.map((section) => ({
@@ -48,7 +49,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps): JSX.Element {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(true)
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme)
   const isLightTheme = theme === 'light'
 
@@ -67,19 +68,33 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps): JSX.El
       {/* Search / Command */}
       <div className="px-3 pt-3 pb-2">
         {collapsed ? (
-          <button
-            onClick={() => setCollapsed(false)}
-            className="w-full h-8 flex items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-accent-foreground transition-colors"
-          >
-            <Search className="w-3.5 h-3.5" />
-          </button>
+          <Tooltip className="w-full">
+            <TooltipTrigger
+              onClick={() => setCollapsed(false)}
+              className="w-full h-8 flex items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-accent-foreground transition-colors"
+            >
+              <PanelRight className="w-3.5 h-3.5" />
+            </TooltipTrigger>
+            <TooltipContent side="right">{captions.sidebar.expand}</TooltipContent>
+          </Tooltip>
         ) : (
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-sidebar-foreground" />
-            <input
-              placeholder={captions.sidebar.searchPlaceholder}
-              className="w-full h-8 pl-8 pr-3 rounded-lg bg-sidebar-accent border border-sidebar-border text-[12px] text-sidebar-accent-foreground placeholder:text-sidebar-foreground/50 outline-none focus:border-sidebar-ring transition-colors"
-            />
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-sidebar-foreground" />
+              <input
+                placeholder={captions.sidebar.searchPlaceholder}
+                className="w-full h-8 pl-8 pr-3 rounded-lg bg-sidebar-accent border border-sidebar-border text-[12px] text-sidebar-accent-foreground placeholder:text-sidebar-foreground/50 outline-none focus:border-sidebar-ring transition-colors"
+              />
+            </div>
+            <Tooltip>
+              <TooltipTrigger
+                onClick={() => setCollapsed(true)}
+                className="h-8 w-8 flex items-center justify-center rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors shrink-0"
+              >
+                <PanelLeft className="w-3.5 h-3.5" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{captions.sidebar.collapse}</TooltipContent>
+            </Tooltip>
           </div>
         )}
       </div>
@@ -96,27 +111,38 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps): JSX.El
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const isActive = activeRoute === item.routeId
-                return (
-                  <button
-                    key={item.routeId}
-                    onClick={() => onNavigate(item.routeId)}
-                    title={collapsed ? item.label : undefined}
-                    className={`relative flex w-full items-center gap-3 px-3 py-2 rounded-lg text-left text-[13px] font-medium transition-all duration-150 group
+                const btnClass = `relative flex w-full items-center gap-3 px-3 py-2 rounded-lg text-left text-[13px] font-medium transition-all duration-150 group
                       ${
                         isActive
                           ? 'bg-sidebar-primary/10 text-sidebar-primary'
                           : 'text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent'
                       }
-                      ${collapsed ? 'items-center justify-center' : ''}`}
+                      ${collapsed ? 'justify-center' : ''}`
+                const iconClass = `w-4 h-4 shrink-0 ${
+                  isActive
+                    ? 'text-sidebar-primary'
+                    : 'text-sidebar-foreground group-hover:text-sidebar-accent-foreground'
+                } transition-colors`
+
+                if (collapsed) {
+                  return (
+                    <Tooltip key={item.routeId} className="w-full">
+                      <TooltipTrigger onClick={() => onNavigate(item.routeId)} className={btnClass}>
+                        <item.icon className={iconClass} />
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{item.label}</TooltipContent>
+                    </Tooltip>
+                  )
+                }
+
+                return (
+                  <button
+                    key={item.routeId}
+                    onClick={() => onNavigate(item.routeId)}
+                    className={btnClass}
                   >
-                    <item.icon
-                      className={`w-4 h-4 shrink-0 ${
-                        isActive
-                          ? 'text-sidebar-primary'
-                          : 'text-sidebar-foreground group-hover:text-sidebar-accent-foreground'
-                      } transition-colors`}
-                    />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
+                    <item.icon className={iconClass} />
+                    <span className="truncate">{item.label}</span>
                   </button>
                 )
               })}
@@ -127,48 +153,62 @@ export function AppSidebar({ activeRoute, onNavigate }: AppSidebarProps): JSX.El
 
       {/* Theme */}
       <div className="px-3 pt-1 pb-1">
-        <button
-          onClick={() => setTheme(isLightTheme ? 'dark' : 'light')}
-          title={
-            isLightTheme
-              ? captions.sidebar.theme.switchToDark
-              : captions.sidebar.theme.switchToLight
-          }
-          aria-pressed={isLightTheme}
-          className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-left text-[13px] font-medium text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors ${
-            collapsed ? 'justify-center' : ''
-          }`}
-        >
-          {isLightTheme ? (
-            <Moon className="w-4 h-4 shrink-0" />
-          ) : (
-            <Sun className="w-4 h-4 shrink-0" />
-          )}
-          {!collapsed && (
+        {collapsed ? (
+          <Tooltip className="w-full">
+            <TooltipTrigger
+              onClick={() => setTheme(isLightTheme ? 'dark' : 'light')}
+              aria-pressed={isLightTheme}
+              className="flex w-full justify-center px-3 py-2 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              {isLightTheme ? (
+                <Moon className="w-4 h-4 shrink-0" />
+              ) : (
+                <Sun className="w-4 h-4 shrink-0" />
+              )}
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {isLightTheme
+                ? captions.sidebar.theme.switchToDark
+                : captions.sidebar.theme.switchToLight}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <button
+            onClick={() => setTheme(isLightTheme ? 'dark' : 'light')}
+            aria-pressed={isLightTheme}
+            className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-left text-[13px] font-medium text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors"
+          >
+            {isLightTheme ? (
+              <Moon className="w-4 h-4 shrink-0" />
+            ) : (
+              <Sun className="w-4 h-4 shrink-0" />
+            )}
             <span>{isLightTheme ? captions.sidebar.theme.light : captions.sidebar.theme.dark}</span>
-          )}
-        </button>
+          </button>
+        )}
       </div>
 
       {/* Settings + collapse */}
       <div className="px-3 pb-3 pt-1 flex items-center gap-0.5">
-        <button
-          onClick={() => onNavigate('settings')}
-          title={captions.sidebar.settings}
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-left text-[13px] font-medium text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors ${
-            collapsed ? 'justify-center w-full' : 'flex-1'
-          }`}
-        >
-          <Settings className="w-4 h-4 shrink-0" />
-          {!collapsed && <span>{captions.sidebar.settings}</span>}
-        </button>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          title={collapsed ? captions.sidebar.expand : captions.sidebar.collapse}
-          className="p-2 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors"
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
+        {collapsed ? (
+          <Tooltip className="w-full">
+            <TooltipTrigger
+              onClick={() => onNavigate('settings')}
+              className="flex w-full justify-center px-3 py-2 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <Settings className="w-4 h-4 shrink-0" />
+            </TooltipTrigger>
+            <TooltipContent side="right">{captions.sidebar.settings}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <button
+            onClick={() => onNavigate('settings')}
+            className="flex flex-1 items-center gap-3 px-3 py-2 rounded-lg text-left text-[13px] font-medium text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors"
+          >
+            <Settings className="w-4 h-4 shrink-0" />
+            <span>{captions.sidebar.settings}</span>
+          </button>
+        )}
       </div>
     </aside>
   )

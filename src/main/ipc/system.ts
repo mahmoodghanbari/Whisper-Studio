@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { dialog, ipcMain } from 'electron'
 import {
   IPC_CHANNELS,
   type DownloadedWhisperModelsResult,
@@ -63,6 +63,11 @@ export function registerSystemHandlers(resolveWindow: WindowResolver): void {
       return installPrerequisite(id)
     }
   )
+
+  ipcMain.handle(IPC_CHANNELS.selectDirectory, async (): Promise<string | null> => {
+    const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })
+    return result.canceled ? null : (result.filePaths[0] ?? null)
+  })
 
   registerWindowControlHandlers(resolveWindow)
 }

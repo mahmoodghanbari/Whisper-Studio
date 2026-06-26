@@ -1,6 +1,14 @@
-import { PlaceholderPage } from '@/app/placeholder-page'
 import { captions } from '@/captions'
 
 export function SettingsPage(): JSX.Element {
-  return <PlaceholderPage title={captions.settingsPage.title} />
+  return (
+    <div className="grid h-full min-h-0 place-items-center px-6 text-center">
+      <div>
+        <h1 className="text-xl font-semibold tracking-normal text-foreground">Settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {captions.routes.dashboard.placeholder}
+        </p>
+      </div>
+    </div>
+  )
 }

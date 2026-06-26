@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import type { DesktopApi, WhisperOutputFile, WhisperProgressPhase } from '@shared/ipc'
-import { Link } from '@/app/navigation'
+import type {
+  DesktopApi,
+  TranscriptionRecord,
+  WhisperOutputFile,
+  WhisperProgressPhase
+} from '@shared/ipc'
+import { setStudioRecord } from '@/lib/studio-store'
+import { useAppRoute } from '@/app/use-app-route'
 import { Button } from '@/components/ui/button'
 import { captions } from '@/captions'
 import { formatBytes } from '@/lib/utils'
@@ -60,9 +66,11 @@ export default function Processing({
   const [error, setError] = useState<string | null>(null)
   const [outputFiles, setOutputFiles] = useState<WhisperOutputFile[]>([])
   const [outputDirectory, setOutputDirectory] = useState<string | null>(null)
+  const [completedRecord, setCompletedRecord] = useState<TranscriptionRecord | null>(null)
   const [commands, setCommands] = useState<string[]>([])
   const [logs, setLogs] = useState<string[]>([])
   const [logsOpen, setLogsOpen] = useState(false)
+  const { navigateTo } = useAppRoute()
   const hasStarted = useRef(false)
   const logsEndRef = useRef<HTMLDivElement>(null)
 
@@ -141,6 +149,7 @@ export default function Processing({
 
         setOutputFiles(result.outputFiles ?? [])
         setOutputDirectory(result.outputDirectory ?? null)
+        if (result.record) setCompletedRecord(result.record)
         setCommands((current) =>
           current.includes(result.command) ? current : [...current, result.command]
         )
@@ -405,16 +414,25 @@ export default function Processing({
         </div>
         {isComplete && !isFailed && (
           <div className="flex gap-2">
-            <Link to="/export">
-              <Button variant="secondary" className="gap-2">
-                {captions.processing.actions.export}
-              </Button>
-            </Link>
-            <Link to="/studio">
-              <Button className="gap-2">
-                {captions.processing.actions.openInStudio} <ChevronRight className="w-4 h-4" />
-              </Button>
-            </Link>
+            <Button
+              variant="secondary"
+              className="gap-2"
+              onClick={() => {
+                if (completedRecord) setStudioRecord(completedRecord)
+                navigateTo('export')
+              }}
+            >
+              {captions.processing.actions.export}
+            </Button>
+            <Button
+              className="gap-2"
+              onClick={() => {
+                if (completedRecord) setStudioRecord(completedRecord)
+                navigateTo('studio')
+              }}
+            >
+              {captions.processing.actions.openInStudio} <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
         )}
       </div>

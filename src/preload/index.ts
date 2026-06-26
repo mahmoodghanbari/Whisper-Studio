@@ -84,6 +84,9 @@ const desktopApi: DesktopApi = {
     ipcRenderer.invoke(IPC_CHANNELS.deleteTranscription, id) as Promise<{ ok: boolean }>,
   readTextFile: (path: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.readTextFile, path) as Promise<string>,
+  writeTextFile: (path: string, content: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.writeTextFile, path, content) as Promise<void>,
+  selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.selectDirectory) as Promise<string | null>,
   windowControls: {
     isMaximized: () => ipcRenderer.invoke(IPC_CHANNELS.windowIsMaximized) as Promise<boolean>,
     minimize: () => ipcRenderer.invoke(IPC_CHANNELS.windowMinimize) as Promise<void>,

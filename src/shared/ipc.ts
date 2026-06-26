@@ -19,7 +19,9 @@ export const IPC_CHANNELS = {
   whisperProgressUpdate: 'whisper:progress-update',
   listTranscriptions: 'transcriptions:list',
   deleteTranscription: 'transcriptions:delete',
-  readTextFile: 'fs:read-text-file'
+  readTextFile: 'fs:read-text-file',
+  writeTextFile: 'fs:write-text-file',
+  selectDirectory: 'fs:select-directory'
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]
@@ -111,6 +113,7 @@ export interface WhisperTranscriptionResult {
   exitCode: number | null
   outputDirectory?: string
   outputFiles?: WhisperOutputFile[]
+  record?: TranscriptionRecord
   stdout: string
   stderr: string
   transcript?: string
@@ -136,6 +139,13 @@ export interface WhisperOutputFile {
   sizeBytes: number
 }
 
+export interface WhisperSegment {
+  id: number
+  start: number
+  end: number
+  text: string
+}
+
 export interface TranscriptionRecord {
   id: string
   sourceFileName: string
@@ -145,8 +155,10 @@ export interface TranscriptionRecord {
   compute: string
   outputDirectory: string
   outputFiles: WhisperOutputFile[]
+  segments: WhisperSegment[]
   durationSeconds: number | null
   createdAt: number
+  editedAt?: number
   exitCode: number | null
 }
 
@@ -193,6 +205,8 @@ export interface DesktopApi {
   listTranscriptions: () => Promise<TranscriptionRecord[]>
   deleteTranscription: (id: string) => Promise<{ ok: boolean }>
   readTextFile: (path: string) => Promise<string>
+  writeTextFile: (path: string, content: string) => Promise<void>
+  selectDirectory: () => Promise<string | null>
   windowControls: {
     isMaximized: () => Promise<boolean>
     minimize: () => Promise<void>

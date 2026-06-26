@@ -92,6 +92,8 @@ const browserDesktopApi: DesktopApi = {
   listTranscriptions: async () => [],
   deleteTranscription: async () => ({ ok: false }),
   readTextFile: async () => '',
+  writeTextFile: async () => {},
+  selectDirectory: async () => null,
   windowControls: {
     isMaximized: async () => false,
     minimize: async () => undefined,
