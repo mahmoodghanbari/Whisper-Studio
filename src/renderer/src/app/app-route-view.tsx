@@ -26,6 +26,6 @@ export function AppRouteView({ activeRoute, desktop }: AppRouteViewProps): JSX.E
       return <Models desktop={desktop} />
     case 'dashboard':
     default:
-      return <Dashboard />
+      return <Dashboard desktop={desktop} />
   }
 }

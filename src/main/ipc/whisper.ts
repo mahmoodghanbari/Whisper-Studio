@@ -1,11 +1,12 @@
 import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { spawn } from 'node:child_process'
 import { statSync } from 'node:fs'
-import { mkdir, readdir, rm } from 'node:fs/promises'
+import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import {
   IPC_CHANNELS,
+  type TranscriptionRecord,
   type WhisperOutputFile,
   type WhisperOutputChunk,
   type WhisperFileSelection,
@@ -381,15 +382,26 @@ async function runWhisper(
       })
 
       collectOutputFiles(outputDirectory, request.formats ?? [])
-        .then((outputFiles) => {
-          resolve({
-            command,
-            exitCode,
+        .then(async (outputFiles) => {
+          const record: TranscriptionRecord = {
+            id: basename(outputDirectory),
+            sourceFileName: basename(request.filePath),
+            sourceFilePath: request.filePath,
+            model: request.model || 'base',
+            language: request.language || 'auto',
+            compute: request.compute,
             outputDirectory,
             outputFiles,
-            stderr,
-            stdout
-          })
+            durationSeconds: null,
+            createdAt: Date.now(),
+            exitCode
+          }
+          await writeFile(
+            join(outputDirectory, 'whisper-studio.json'),
+            JSON.stringify(record, null, 2),
+            'utf8'
+          ).catch(() => undefined)
+          resolve({ command, exitCode, outputDirectory, outputFiles, stderr, stdout })
         })
         .catch(reject)
     })
@@ -440,6 +452,40 @@ export function registerWhisperHandlers(): void {
           event.sender.send(IPC_CHANNELS.whisperProgressUpdate, update)
         }
       )
+    }
+  )
+
+  ipcMain.handle(IPC_CHANNELS.listTranscriptions, async (): Promise<TranscriptionRecord[]> => {
+    const exportsDir = getOutputDirectory()
+    const entries = await readdir(exportsDir, { withFileTypes: true }).catch(() => [])
+    const records: TranscriptionRecord[] = []
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const metaPath = join(exportsDir, entry.name, 'whisper-studio.json')
+      try {
+        const { readFile } = await import('node:fs/promises')
+        const raw = await readFile(metaPath, 'utf8')
+        records.push(JSON.parse(raw) as TranscriptionRecord)
+      } catch {
+        // skip folders without metadata
+      }
+    }
+
+    return records.sort((a, b) => b.createdAt - a.createdAt)
+  })
+
+  ipcMain.handle(
+    IPC_CHANNELS.deleteTranscription,
+    async (_event: IpcMainInvokeEvent, id: string): Promise<{ ok: boolean }> => {
+      const exportsDir = getOutputDirectory()
+      // Sanitize: id must be a plain folder name with no path separators
+      if (!id || id.includes('/') || id.includes('\\') || id.includes('..')) {
+        return { ok: false }
+      }
+      const dir = join(exportsDir, id)
+      await rm(dir, { force: true, recursive: true }).catch(() => undefined)
+      return { ok: true }
     }
   )
 }

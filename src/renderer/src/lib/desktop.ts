@@ -91,6 +91,8 @@ const browserDesktopApi: DesktopApi = {
   }),
   onWhisperOutput: () => () => undefined,
   onWhisperProgress: () => () => undefined,
+  listTranscriptions: async () => [],
+  deleteTranscription: async () => ({ ok: false }),
   windowControls: {
     isMaximized: async () => false,
     minimize: async () => undefined,

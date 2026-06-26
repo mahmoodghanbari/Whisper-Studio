@@ -1,11 +1,16 @@
+import type { DesktopApi } from '@shared/ipc'
 import TranscriptionGrid from './components/transcription-grid'
 import WelcomeHeader from './components/welcome-header'
 
-export default function Dashboard() {
+interface DashboardProps {
+  desktop: DesktopApi
+}
+
+export default function Dashboard({ desktop }: DashboardProps) {
   return (
     <div className="p-8 max-w-[1280px] mx-auto space-y-6">
       <WelcomeHeader />
-      <TranscriptionGrid />
+      <TranscriptionGrid desktop={desktop} />
     </div>
   )
 }

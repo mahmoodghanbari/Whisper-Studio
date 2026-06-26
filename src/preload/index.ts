@@ -9,6 +9,7 @@ import {
   type PrerequisiteCheckId,
   type PrerequisiteInstallResult,
   type SystemStatus,
+  type TranscriptionRecord,
   type WhisperFileSelection,
   type WhisperModelActionResult,
   type WhisperModelDownloadProgress,
@@ -77,6 +78,10 @@ const desktopApi: DesktopApi = {
       ipcRenderer.removeListener(IPC_CHANNELS.whisperProgressUpdate, listener)
     }
   },
+  listTranscriptions: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.listTranscriptions) as Promise<TranscriptionRecord[]>,
+  deleteTranscription: (id: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.deleteTranscription, id) as Promise<{ ok: boolean }>,
   windowControls: {
     isMaximized: () => ipcRenderer.invoke(IPC_CHANNELS.windowIsMaximized) as Promise<boolean>,
     minimize: () => ipcRenderer.invoke(IPC_CHANNELS.windowMinimize) as Promise<void>,
