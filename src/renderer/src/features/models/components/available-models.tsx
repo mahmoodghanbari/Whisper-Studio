@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, Loader2, Cpu, Globe, Zap, Star, Boxes } from 'lucide-react'
+import { Download, Loader2, Cpu, Zap, Star, Boxes, Languages } from 'lucide-react'
 import type { DownloadedWhisperModel, WhisperModelDownloadProgress } from '@shared/ipc'
 import { Button } from '@/components/ui/button'
 import { formatBytes } from '@/lib/utils'
@@ -152,7 +152,7 @@ export default function AvailableModels({
                     <Cpu className="w-3 h-3" /> {model.params}
                   </span>
                   <span className="flex items-center gap-1">
-                    <Globe className="w-3 h-3" /> {availableCaptions.languageCount}
+                    <Languages className="w-3 h-3" /> {availableCaptions.languageCount}
                   </span>
                   <span className="flex items-center gap-1">
                     <Zap className="w-3 h-3" /> {model.accuracy}

@@ -3,7 +3,7 @@ import { Link } from '@/app/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { captions } from '@/captions'
-import { Search, Replace, Download, Check, FileAudio, Clock, Loader2, Save } from 'lucide-react'
+import { Search, Replace, Download, Check, FileAudio, Clock, Loader2, Save, X } from 'lucide-react'
 import AudioPlayer from '@/components/studio/audio-player'
 import SpeakerPanel from '@/components/studio/speaker-panel'
 import TranscriptSegment from '@/components/studio/transcript-segment'
@@ -37,7 +37,6 @@ export default function Studio({ desktop }: StudioProps) {
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle')
-  const [savedPath, setSavedPath] = useState<string>('')
   const { navigateTo } = useAppRoute()
   const seekToRef = useRef<((s: number) => void) | null>(null)
   // Index of next replacement candidate within matching segments
@@ -166,7 +165,6 @@ export default function Studio({ desktop }: StudioProps) {
       await desktop.writeTextFile(metaPath, JSON.stringify(updatedRecord, null, 2))
 
       console.log('[Studio] Saved to:', metaPath)
-      setSavedPath(metaPath)
       setRecord(updatedRecord)
       setIsDirty(false)
       setSaveStatus('saved')
@@ -177,6 +175,12 @@ export default function Studio({ desktop }: StudioProps) {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  function handleSegmentTextChange(id: number, newText: string) {
+    setSegments((segs) => segs.map((s) => (s.id === id ? { ...s, text: newText } : s)))
+    setIsDirty(true)
+    setSaveStatus('idle')
   }
 
   const filteredSegments = useMemo(
@@ -281,14 +285,6 @@ export default function Studio({ desktop }: StudioProps) {
               )}
               {saveStatus === 'saved' ? 'Saved!' : saveStatus === 'error' ? 'Error' : 'Save'}
             </Button>
-            {saveStatus === 'saved' && savedPath && (
-              <span
-                className="text-[10px] text-muted-foreground truncate max-w-[220px]"
-                title={savedPath}
-              >
-                → {savedPath.split(/[\\/]/).slice(-3).join(' / ')}
-              </span>
-            )}
             <Button
               size="sm"
               className="gap-1.5 text-xs"
@@ -316,9 +312,12 @@ export default function Studio({ desktop }: StudioProps) {
                 className="pl-9 h-8 text-[13px] bg-secondary/40 border-border/40"
               />
               {searchQuery && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground">
-                  {matchCount} {captions.studio.matchesLabel}
-                </span>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
               )}
             </div>
             <Button
@@ -329,6 +328,11 @@ export default function Studio({ desktop }: StudioProps) {
             >
               <Replace className="w-3.5 h-3.5" /> {captions.studio.actions.replace}
             </Button>
+            {searchQuery && (
+              <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                {matchCount} {captions.studio.matchesLabel}
+              </span>
+            )}
           </div>
 
           {showReplace && (
@@ -390,6 +394,7 @@ export default function Studio({ desktop }: StudioProps) {
                     isActive={activeSegment === seg.id}
                     searchQuery={searchQuery}
                     onActivate={setActiveSegment}
+                    onTextChange={handleSegmentTextChange}
                     onTimeClick={() => {
                       seekToRef.current?.(seg.startSeconds)
                     }}

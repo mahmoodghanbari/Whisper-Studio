@@ -6,7 +6,7 @@ import type {
   DownloadedWhisperModel,
   DownloadedWhisperModelsResult,
   WhisperModelActionResult,
-  type WhisperModelDownloadProgress
+  WhisperModelDownloadProgress
 } from '../../../shared/ipc'
 
 const knownModelInfo: Record<string, { params: string }> = {
@@ -99,7 +99,7 @@ async function scanDownloadedModels(): Promise<DownloadedWhisperModelsResult> {
   let entries: Awaited<ReturnType<typeof readdir>>
 
   try {
-    entries = await readdir(cacheDir, { withFileTypes: true })
+    entries = await readdir(cacheDir, { withFileTypes: true, encoding: 'utf8' })
   } catch {
     return { models: [], totalSizeBytes: 0 }
   }

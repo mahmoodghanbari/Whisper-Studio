@@ -21,7 +21,14 @@ const SPEAKER_COLORS = {
   }
 }
 
-export default function TranscriptSegment({ seg, isActive, searchQuery, onActivate, onTimeClick }) {
+export default function TranscriptSegment({
+  seg,
+  isActive,
+  searchQuery,
+  onActivate,
+  onTimeClick,
+  onTextChange
+}) {
   const [editing, setEditing] = React.useState(false)
   const [text, setText] = React.useState(seg.text)
   const colors = SPEAKER_COLORS[seg.speaker] || SPEAKER_COLORS[speakerPanel.speakers[0].speaker]
@@ -83,7 +90,10 @@ export default function TranscriptSegment({ seg, isActive, searchQuery, onActiva
             value={text}
             autoFocus
             onChange={(e) => setText(e.target.value)}
-            onBlur={() => setEditing(false)}
+            onBlur={() => {
+              setEditing(false)
+              if (text !== seg.text) onTextChange?.(seg.id, text)
+            }}
             className="w-full bg-secondary/40 rounded-lg p-2 text-[13px] leading-relaxed resize-none outline-none border border-primary/30 focus:border-primary/50"
             rows={3}
           />
@@ -97,6 +107,7 @@ export default function TranscriptSegment({ seg, isActive, searchQuery, onActiva
         <button
           onClick={(e) => {
             e.stopPropagation()
+            if (editing && text !== seg.text) onTextChange?.(seg.id, text)
             setEditing(!editing)
           }}
           className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"

@@ -1,7 +1,8 @@
 import type { MouseEvent } from 'react'
-import { AppWindow, Maximize2, Minimize2, Minus, X } from 'lucide-react'
+import { Maximize2, Minimize2, Minus, X } from 'lucide-react'
 import type { DesktopPlatform } from '@shared/ipc'
-import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import logoUrl from '../logo.svg'
 import { captions } from '@/captions'
 import { cn } from '@/lib/utils'
 
@@ -32,7 +33,7 @@ export function TitleBar({
   }
 
   const windowButtonClass =
-    'h-full w-full rounded-none text-muted-foreground [-webkit-app-region:no-drag] hover:bg-muted hover:text-foreground'
+    'h-full w-full rounded-none text-muted-foreground [-webkit-app-region:no-drag] hover:bg-muted hover:text-foreground flex items-center justify-center'
 
   return (
     <header
@@ -42,7 +43,11 @@ export function TitleBar({
       )}
     >
       <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-muted-foreground">
-        <AppWindow className="size-4 shrink-0" />
+        <span
+          className="size-4 shrink-0 bg-current"
+          style={{ maskImage: `url(${logoUrl})`, maskSize: 'contain', maskRepeat: 'no-repeat', maskPosition: 'center', WebkitMaskImage: `url(${logoUrl})`, WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center' }}
+          aria-hidden="true"
+        />
         <span className="truncate">{appName}</span>
       </div>
 
@@ -60,36 +65,35 @@ export function TitleBar({
         className="grid h-full grid-cols-[repeat(3,2.875rem)] [-webkit-app-region:no-drag]"
         aria-label={captions.titleBar.windowControls}
       >
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={windowButtonClass}
-          onClick={(event) => runWindowAction(event, onMinimize)}
-          title={captions.titleBar.minimize}
-        >
-          <Minus className="size-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={windowButtonClass}
-          onClick={(event) => runWindowAction(event, onMaximize)}
-          title={isMaximized ? captions.titleBar.restore : captions.titleBar.maximize}
-        >
-          {isMaximized ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn(windowButtonClass, 'hover:bg-destructive hover:text-white')}
-          onClick={(event) => runWindowAction(event, onClose)}
-          title={captions.titleBar.close}
-        >
-          <X className="size-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            className={cn(windowButtonClass, 'rounded-none')}
+            onClick={(event) => runWindowAction(event, onMinimize)}
+          >
+            <Minus className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{captions.titleBar.minimize}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            className={cn(windowButtonClass, 'rounded-none')}
+            onClick={(event) => runWindowAction(event, onMaximize)}
+          >
+            {isMaximized ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {isMaximized ? captions.titleBar.restore : captions.titleBar.maximize}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            className={cn(windowButtonClass, 'rounded-none hover:bg-destructive hover:text-white')}
+            onClick={(event) => runWindowAction(event, onClose)}
+          >
+            <X className="size-4" />
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{captions.titleBar.close}</TooltipContent>
+        </Tooltip>
       </div>
     </header>
   )

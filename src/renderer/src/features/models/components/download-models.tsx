@@ -4,10 +4,10 @@ import {
   CheckCircle2,
   FileAudio,
   Cpu,
-  Globe,
   RefreshCw,
   Trash2,
-  Loader2
+  Loader2,
+  Languages
 } from 'lucide-react'
 import type { DownloadedWhisperModel } from '@shared/ipc'
 import { Button } from '@/components/ui/button'
@@ -136,7 +136,7 @@ export default function DownloadedModels({
                       {downloadedCaptions.detailSeparator}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Globe className="w-3 h-3" /> {model.languages}{' '}
+                      <Languages className="w-3 h-3" /> {model.languages}{' '}
                       {downloadedCaptions.languageSuffix}
                     </span>
                     <span className="text-muted-foreground/30">

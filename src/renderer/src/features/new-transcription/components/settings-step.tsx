@@ -12,7 +12,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { ChevronDown, Info, Cpu, Zap, Globe, Brain, Users, Volume2, Waves } from 'lucide-react'
+import { ChevronDown, Info, Cpu, Zap, Brain, Users, Volume2, Waves, Languages } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { captions } from '@/captions'
 
@@ -34,7 +34,7 @@ export interface TranscriptionSettings {
 interface SettingRowProps {
   children: ReactNode
   description: string
-  icon: typeof Globe
+  icon: typeof Languages
   label: string
   tooltip?: string
 }
@@ -185,7 +185,7 @@ export default function StepSettings({
       <div className="glass-panel relative z-30 rounded-xl divide-y divide-border/50">
         <div className="px-5">
           <SettingRow
-            icon={Globe}
+            icon={Languages}
             label={settingRows.language.label}
             description={settingRows.language.description}
             tooltip={settingRows.language.tooltip}
@@ -386,7 +386,7 @@ export default function StepSettings({
           <div className="glass-panel relative z-0 rounded-xl divide-y divide-border/50">
             <div className="px-5">
               <SettingRow
-                icon={Globe}
+                icon={Languages}
                 label={settingRows.translate.label}
                 description={settingRows.translate.description}
               >
