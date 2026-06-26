@@ -19,7 +19,7 @@ export function AppRouteView({ activeRoute, desktop }: AppRouteViewProps): JSX.E
     case 'settings':
       return <SettingsPage />
     case 'studio':
-      return <Studio />
+      return <Studio desktop={desktop} />
     case 'export':
       return <Export />
     case 'models':

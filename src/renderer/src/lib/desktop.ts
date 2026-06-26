@@ -50,8 +50,6 @@ const browserDesktopApi: DesktopApi = {
     { id: 'python', installed: null, status: 'missing' },
     { id: 'ffmpeg', installed: null, status: 'missing' },
     { id: 'cuda', installed: null, status: 'missing' },
-    { id: 'faster-whisper', installed: null, status: 'missing' },
-    { id: 'ctranslate2', installed: null, status: 'missing' },
     { id: 'torch', installed: null, status: 'missing' }
   ],
   installPrerequisite: async (id: PrerequisiteCheckId): Promise<PrerequisiteInstallResult> => ({
@@ -93,6 +91,7 @@ const browserDesktopApi: DesktopApi = {
   onWhisperProgress: () => () => undefined,
   listTranscriptions: async () => [],
   deleteTranscription: async () => ({ ok: false }),
+  readTextFile: async () => '',
   windowControls: {
     isMaximized: async () => false,
     minimize: async () => undefined,

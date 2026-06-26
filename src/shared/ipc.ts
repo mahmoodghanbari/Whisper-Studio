@@ -18,7 +18,8 @@ export const IPC_CHANNELS = {
   whisperOutputChunk: 'whisper:output-chunk',
   whisperProgressUpdate: 'whisper:progress-update',
   listTranscriptions: 'transcriptions:list',
-  deleteTranscription: 'transcriptions:delete'
+  deleteTranscription: 'transcriptions:delete',
+  readTextFile: 'fs:read-text-file'
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]
@@ -191,6 +192,7 @@ export interface DesktopApi {
   onWhisperProgress: (callback: (update: WhisperProgressUpdate) => void) => () => void
   listTranscriptions: () => Promise<TranscriptionRecord[]>
   deleteTranscription: (id: string) => Promise<{ ok: boolean }>
+  readTextFile: (path: string) => Promise<string>
   windowControls: {
     isMaximized: () => Promise<boolean>
     minimize: () => Promise<void>

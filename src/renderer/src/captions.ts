@@ -488,7 +488,7 @@ export const captions = {
       removeSilence: false,
       noiseReduction: false
     },
-    initialOutputFormats: ['srt', 'txt'],
+    initialOutputFormats: ['srt', 'txt', 'vtt', 'json', 'tsv'],
     initialExportMode: 'single',
     steps: [
       { id: 1, label: 'Select Files', description: 'Choose audio or video files' },
@@ -590,6 +590,15 @@ export const captions = {
         {
           value: 'large-v3',
           label: 'Large-v3',
+          speed: '~8x',
+          accuracy: 'Best',
+          vram: '10 GB',
+          desc: 'Maximum accuracy',
+          recommended: true
+        },
+        {
+          value: 'large-v3-turbo',
+          label: 'Large-v3-turbo',
           speed: '~8x',
           accuracy: 'Best',
           vram: '10 GB',

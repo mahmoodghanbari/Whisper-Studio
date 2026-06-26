@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { DesktopApi, TranscriptionRecord } from '@shared/ipc'
-import { Link } from '@/app/navigation'
 import { Mic, Clock, FileAudio, MoreHorizontal, Trash2, Loader2, FolderOpen } from 'lucide-react'
+import { setStudioRecord } from '@/lib/studio-store'
+import { useAppRoute } from '@/app/use-app-route'
 
 const ACCENTS = [
   'from-primary/20 to-primary/5',
@@ -40,6 +41,12 @@ export default function TranscriptionGrid({ desktop }: TranscriptionGridProps) {
   const [loading, setLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const { navigateTo } = useAppRoute()
+
+  function openInStudio(item: TranscriptionRecord) {
+    setStudioRecord(item)
+    navigateTo('studio')
+  }
 
   useEffect(() => {
     desktop
@@ -142,7 +149,7 @@ export default function TranscriptionGrid({ desktop }: TranscriptionGridProps) {
             </div>
 
             {/* Body */}
-            <Link to="/studio" className="block p-4">
+            <button onClick={() => openInStudio(item)} className="block w-full text-left p-4">
               <h3 className="text-[13px] font-medium truncate group-hover:text-primary transition-colors mb-2">
                 {item.sourceFileName}
               </h3>
@@ -160,7 +167,7 @@ export default function TranscriptionGrid({ desktop }: TranscriptionGridProps) {
                   </>
                 )}
               </div>
-            </Link>
+            </button>
           </div>
         ))}
       </div>

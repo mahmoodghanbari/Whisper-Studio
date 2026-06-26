@@ -488,4 +488,12 @@ export function registerWhisperHandlers(): void {
       return { ok: true }
     }
   )
+
+  ipcMain.handle(
+    IPC_CHANNELS.readTextFile,
+    async (_event: IpcMainInvokeEvent, filePath: string): Promise<string> => {
+      const { readFile } = await import('node:fs/promises')
+      return readFile(filePath, 'utf8')
+    }
+  )
 }
