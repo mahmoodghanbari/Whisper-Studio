@@ -335,7 +335,11 @@ async function runWhisper(
     const stderrDecoder = new StringDecoder('utf8')
 
     // Emit transcribing immediately — model loading produces no output for up to 60s
-    onProgress({ phase: 'transcribing', state: 'active', message: 'Loading model and transcribing...' })
+    onProgress({
+      phase: 'transcribing',
+      state: 'active',
+      message: 'Loading model and transcribing...'
+    })
 
     child.stdout.on('data', (chunk: Buffer) => {
       stdoutChunks.push(chunk)
