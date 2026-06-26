@@ -96,7 +96,12 @@ export default function NewTranscription({ desktop }: NewTranscriptionProps) {
           <StepSettings desktop={desktop} settings={settings} setSettings={setSettings} />
         )}
         {step === 3 && (
-          <StepOutput outputFormats={outputFormats} setOutputFormats={setOutputFormats} />
+          <StepOutput
+            file={file}
+            outputFormats={outputFormats}
+            setOutputFormats={setOutputFormats}
+            settings={settings}
+          />
         )}
         {step === 4 && <Processing />}
       </div>

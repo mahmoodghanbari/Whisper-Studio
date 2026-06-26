@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from '@/app/navigation'
-import { FORMAT_ICONS } from '@/lib/format-icons'
+import { FALLBACK_FORMAT_ICON, FORMAT_ICONS } from '@/lib/format-icons'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { captions } from '@/captions'
@@ -8,7 +8,7 @@ import { ArrowLeft, Copy, Check, Download, FolderOpen, Eye } from 'lucide-react'
 
 const FORMATS = captions.export.formats.map((format) => ({
   ...format,
-  icon: FORMAT_ICONS[format.value]
+  icon: FORMAT_ICONS[format.value] ?? FALLBACK_FORMAT_ICON
 }))
 
 type ExportFormat = (typeof FORMATS)[number]['value']

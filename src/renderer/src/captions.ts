@@ -574,6 +574,15 @@ export const captions = {
           recommended: false
         },
         {
+          value: 'large-v2',
+          label: 'Large-v2',
+          speed: '~8x',
+          accuracy: 'Best',
+          vram: '10 GB',
+          desc: 'Maximum accuracy',
+          recommended: true
+        },
+        {
           value: 'large-v3',
           label: 'Large-v3',
           speed: '~8x',
@@ -636,9 +645,16 @@ export const captions = {
       estimated: {
         timeLabel: 'Estimated Time',
         timeValue: '~21 min',
+        unknownTimeValue: '—',
+        lessThanMinute: '<1 min',
+        fileSizeEstimateNote: 'Estimated from file size',
+        hourUnit: 'h',
+        minuteUnit: 'min',
         modelLabel: 'Model',
         modelValue: 'Large-v3',
+        unknownModelValue: '—',
         outputFilesLabel: 'Output Files',
+        fileSuffix: 'file',
         filesSuffix: 'files'
       },
       formats: [
@@ -656,8 +672,7 @@ export const captions = {
         },
         { value: 'vtt', label: 'WebVTT', ext: '.vtt', desc: 'Web-compatible subtitles' },
         { value: 'json', label: 'JSON', ext: '.json', desc: 'Structured data with metadata' },
-        { value: 'md', label: 'Markdown', ext: '.md', desc: 'Formatted text with headers' },
-        { value: 'html', label: 'HTML', ext: '.html', desc: 'Styled web page output' }
+        { value: 'tsv', label: 'TSV', ext: '.tsv', desc: 'Formatted text with headers' }
       ]
     }
   },
@@ -703,8 +718,7 @@ export const captions = {
       { value: 'srt', label: 'SRT' },
       { value: 'vtt', label: 'VTT' },
       { value: 'json', label: 'JSON' },
-      { value: 'md', label: 'Markdown' },
-      { value: 'html', label: 'HTML' }
+      { value: 'tsv', label: 'TSV' }
     ],
     fileInfo: {
       title: 'Product Strategy Meeting Q4',
@@ -794,6 +808,10 @@ which features drove the most engagement?`,
     }
   ]
 }`,
+      tsv: `start\tend\tspeaker\ttext
+00:00:00.000\t00:00:15.000\tSarah Chen\tGood morning everyone. Thank you for joining today's product strategy meeting.
+00:00:15.000\t00:00:32.000\tMichael Torres\tThanks Sarah. I'd like to start by reviewing our Q3 metrics.
+00:00:32.000\t00:00:48.000\tSarah Chen\tThat's excellent. Can you break down which features drove the most engagement?`,
       md: `# Product Strategy Meeting Q4
 
 **Date:** December 12, 2024  

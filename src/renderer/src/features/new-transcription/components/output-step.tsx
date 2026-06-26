@@ -2,22 +2,145 @@ import type { Dispatch, SetStateAction } from 'react'
 
 import { Checkbox } from '@/components/ui/checkbox'
 import { FolderOpen } from 'lucide-react'
-import { FORMAT_ICONS } from '@/lib/format-icons'
+import { FALLBACK_FORMAT_ICON, FORMAT_ICONS } from '@/lib/format-icons'
 import { captions } from '@/captions'
+import type { TranscriptionFile } from './files-step'
+import type { TranscriptionSettings } from './settings-step'
 
 const FORMATS = captions.newTranscription.output.formats.map((format) => ({
   ...format,
-  icon: FORMAT_ICONS[format.value]
+  icon: FORMAT_ICONS[format.value] ?? FALLBACK_FORMAT_ICON
 }))
+const MODEL_DETAILS = captions.newTranscription.settings.models
+const ESTIMATE_CAPTIONS = captions.newTranscription.output.estimated
+const estimatedBytesPerSecondByType = {
+  audio: 16_000,
+  video: 375_000
+} as const
 
 interface StepOutputProps {
+  file: TranscriptionFile | null
   outputFormats: string[]
   setOutputFormats: Dispatch<SetStateAction<string[]>>
+  settings: TranscriptionSettings
+}
+
+interface DurationEstimate {
+  seconds: number | null
+  source: 'file-size' | 'metadata' | 'none'
+}
+
+function parseDurationSeconds(duration: string): number | null {
+  if (!duration || duration === '—') {
+    return null
+  }
+
+  const parts = duration.split(':').map((part) => Number(part))
+
+  if (parts.some((part) => !Number.isFinite(part))) {
+    return null
+  }
+
+  if (parts.length === 2) {
+    const [minutes, seconds] = parts
+    return minutes * 60 + seconds
+  }
+
+  if (parts.length === 3) {
+    const [hours, minutes, seconds] = parts
+    return hours * 3600 + minutes * 60 + seconds
+  }
+
+  return null
+}
+
+function getDurationEstimate(file: TranscriptionFile | null): DurationEstimate {
+  if (!file) {
+    return { seconds: null, source: 'none' }
+  }
+
+  const metadataSeconds = parseDurationSeconds(file.duration)
+
+  if (metadataSeconds) {
+    return { seconds: metadataSeconds, source: 'metadata' }
+  }
+
+  if (file.sizeBytes <= 0) {
+    return { seconds: null, source: 'none' }
+  }
+
+  return {
+    seconds: Math.ceil(file.sizeBytes / estimatedBytesPerSecondByType[file.type]),
+    source: 'file-size'
+  }
+}
+
+function getModelDetails(modelName: string): (typeof MODEL_DETAILS)[number] | null {
+  const normalizedName = modelName.toLowerCase()
+
+  return (
+    MODEL_DETAILS.find((model) => {
+      const normalizedValue = model.value.toLowerCase()
+      return (
+        normalizedName === normalizedValue ||
+        normalizedName.includes(`-${normalizedValue}`) ||
+        normalizedName.includes(normalizedValue)
+      )
+    }) ?? null
+  )
+}
+
+function getSpeedFactor(modelName: string): number | null {
+  const model = getModelDetails(modelName)
+  const speed = model?.speed.match(/(\d+(?:\.\d+)?)x/)
+
+  if (!speed) {
+    return null
+  }
+
+  return Number(speed[1])
+}
+
+function formatEstimateTime(seconds: number | null): string {
+  if (!seconds || seconds <= 0) {
+    return ESTIMATE_CAPTIONS.unknownTimeValue
+  }
+
+  const minutes = Math.ceil(seconds / 60)
+
+  if (minutes <= 1) {
+    return ESTIMATE_CAPTIONS.lessThanMinute
+  }
+
+  if (minutes < 60) {
+    return `~${minutes} ${ESTIMATE_CAPTIONS.minuteUnit}`
+  }
+
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+
+  if (remainingMinutes === 0) {
+    return `~${hours}${ESTIMATE_CAPTIONS.hourUnit}`
+  }
+
+  return `~${hours}${ESTIMATE_CAPTIONS.hourUnit} ${remainingMinutes}${ESTIMATE_CAPTIONS.minuteUnit}`
+}
+
+function formatModelLabel(modelName: string): string {
+  const model = getModelDetails(modelName)
+
+  if (model) {
+    return model.label
+  }
+
+  return modelName || ESTIMATE_CAPTIONS.unknownModelValue
 }
 
 export default function StepOutput({
+  file,
   outputFormats,
-  setOutputFormats
+  setOutputFormats,
+  settings
 }: StepOutputProps): JSX.Element {
   const toggleFormat = (value: string): void => {
     setOutputFormats(
@@ -26,6 +149,16 @@ export default function StepOutput({
         : [...outputFormats, value]
     )
   }
+  const durationEstimate = getDurationEstimate(file)
+  const speedFactor = getSpeedFactor(settings.model)
+  const estimatedSeconds =
+    durationEstimate.seconds && speedFactor
+      ? Math.ceil(durationEstimate.seconds / speedFactor)
+      : null
+  const modelLabel = formatModelLabel(settings.model)
+  const outputFileCount = outputFormats.length
+  const outputFileSuffix =
+    outputFileCount === 1 ? ESTIMATE_CAPTIONS.fileSuffix : ESTIMATE_CAPTIONS.filesSuffix
 
   return (
     <div className="space-y-6">
@@ -94,23 +227,26 @@ export default function StepOutput({
               {captions.newTranscription.output.estimated.timeLabel}
             </span>
             <span className="text-lg font-semibold font-mono">
-              {captions.newTranscription.output.estimated.timeValue}
+              {formatEstimateTime(estimatedSeconds)}
             </span>
+            {durationEstimate.source === 'file-size' && (
+              <span className="block text-[10px] text-muted-foreground mt-0.5">
+                {ESTIMATE_CAPTIONS.fileSizeEstimateNote}
+              </span>
+            )}
           </div>
           <div>
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">
               {captions.newTranscription.output.estimated.modelLabel}
             </span>
-            <span className="text-[13px] font-medium">
-              {captions.newTranscription.output.estimated.modelValue}
-            </span>
+            <span className="text-[13px] font-medium">{modelLabel}</span>
           </div>
           <div>
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">
               {captions.newTranscription.output.estimated.outputFilesLabel}
             </span>
             <span className="text-[13px] font-medium">
-              {outputFormats.length * 2} {captions.newTranscription.output.estimated.filesSuffix}
+              {outputFileCount} {outputFileSuffix}
             </span>
           </div>
         </div>
