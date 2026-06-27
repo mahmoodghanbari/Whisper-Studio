@@ -1,6 +1,22 @@
 # Whisper Studio
 
-An open-source desktop boilerplate built with Electron, React, TypeScript, and Vite. The structure is designed for a VS Code-style product: native app responsibilities stay in Electron, UI work stays in React, and shared contracts keep IPC predictable.
+[![CI](https://github.com/your-org/whisper-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/whisper-studio/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+A cross-platform desktop application for AI-powered audio and video transcription using [OpenAI Whisper](https://github.com/openai/whisper). Built with Electron, React, TypeScript, and Vite.
+
+Whisper Studio runs entirely on your machine — no cloud services, no data leaves your device. Transcribe audio or video files, edit the resulting transcript, and export to SRT, VTT, TXT, TSV, or JSON.
+
+## Features
+
+- Transcribe audio and video files locally using OpenAI Whisper
+- GPU (CUDA) and CPU compute modes
+- Real-time transcription progress and live log output
+- Interactive transcript editor with search and replace
+- Export to SRT, VTT, TXT, TSV, and JSON
+- Model manager — download and delete Whisper models in-app
+- Prerequisite checker for Python, FFmpeg, CUDA, and pip packages
+- Dark / light theme
 
 ## Stack
 

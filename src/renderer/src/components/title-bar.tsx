@@ -3,7 +3,7 @@ import { Maximize2, Minimize2, Minus, X } from 'lucide-react'
 import type { DesktopPlatform } from '@shared/ipc'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import logoUrl from '../logo.svg'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 
 interface TitleBarProps {

@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { registerSystemHandlers } from './ipc/system'
-import { registerWhisperHandlers } from './ipc/whisper'
+import { registerWhisperHandlers } from './ipc/whisper/index'
 import { IPC_CHANNELS } from '../shared/ipc'
 
 // Register a safe protocol for serving local media files from the renderer

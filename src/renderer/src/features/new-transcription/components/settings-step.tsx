@@ -14,7 +14,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ChevronDown, Info, Cpu, Zap, Brain, Users, Volume2, Waves, Languages } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 
 const MODEL_DETAILS = captions.newTranscription.settings.models
 const LANGUAGES = captions.newTranscription.settings.languages

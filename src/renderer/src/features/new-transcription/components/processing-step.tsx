@@ -8,7 +8,7 @@ import type {
 import { setStudioRecord } from '@/lib/studio-store'
 import { useAppRoute } from '@/app/use-app-route'
 import { Button } from '@/components/ui/button'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 import { formatBytes } from '@/lib/utils'
 import {
   Loader2,

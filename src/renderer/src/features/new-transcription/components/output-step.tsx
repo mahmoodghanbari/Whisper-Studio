@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FolderOpen } from 'lucide-react'
 import { FALLBACK_FORMAT_ICON, FORMAT_ICONS } from '@/lib/format-icons'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 import type { TranscriptionFile } from './files-step'
 import type { TranscriptionSettings } from './settings-step'
 

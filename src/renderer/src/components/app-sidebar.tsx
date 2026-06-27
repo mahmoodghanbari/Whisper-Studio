@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 
 import type { AppRouteId } from '@/app/routing'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const navIcons = {

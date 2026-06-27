@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { ChevronDown } from 'lucide-react'
 
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 
 interface SelectContextValue {

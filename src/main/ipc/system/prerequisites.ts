@@ -5,6 +5,7 @@ import type {
   PrerequisiteCheckId,
   PrerequisiteInstallResult
 } from '../../../shared/ipc'
+import { createScopedCache } from './cache'
 
 type CommandResult = {
   command: string
@@ -32,10 +33,6 @@ export const prerequisiteIds: readonly PrerequisiteCheckId[] = [
   'openai-whisper',
   'torch'
 ]
-
-const prerequisiteCacheDurationMs = 5000
-let prerequisiteCache: { checkedAt: number; value: PrerequisiteCheck[] } | null = null
-let prerequisiteRequest: Promise<PrerequisiteCheck[]> | null = null
 
 const pipInstallPackages: Partial<Record<PrerequisiteCheckId, string>> = {
   'openai-whisper': 'openai-whisper',
@@ -252,25 +249,14 @@ async function checkPrerequisites(): Promise<PrerequisiteCheck[]> {
   )
 }
 
+const prerequisitesCache = createScopedCache(checkPrerequisites, 5000)
+
 export async function getCachedPrerequisites(): Promise<PrerequisiteCheck[]> {
-  if (prerequisiteCache && Date.now() - prerequisiteCache.checkedAt < prerequisiteCacheDurationMs) {
-    return prerequisiteCache.value
-  }
-
-  if (!prerequisiteRequest) {
-    prerequisiteRequest = checkPrerequisites().then((value) => {
-      prerequisiteCache = { checkedAt: Date.now(), value }
-      prerequisiteRequest = null
-      return value
-    })
-  }
-
-  return prerequisiteRequest
+  return prerequisitesCache.get()
 }
 
 function clearPrerequisiteCache(): void {
-  prerequisiteCache = null
-  prerequisiteRequest = null
+  prerequisitesCache.invalidate()
 }
 
 export async function installPrerequisite(

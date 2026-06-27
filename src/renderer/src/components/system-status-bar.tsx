@@ -1,6 +1,6 @@
 import { Box, Circle, Cpu, Dot, HardDrive } from 'lucide-react'
 import type { SystemStatus } from '@shared/ipc'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 
 const metricIcons = [Cpu, HardDrive, Box] as const
 

@@ -4,7 +4,7 @@ import { useDesktopShell } from './app/use-desktop-shell'
 import { AppSidebar } from './components/app-sidebar'
 import { SystemStatusBar } from './components/system-status-bar'
 import { TitleBar } from './components/title-bar'
-import { captions } from './captions'
+import { captions } from './lib/strings'
 
 export function App(): JSX.Element {
   const { appInfo, desktop, isWindowMaximized, platform, systemStatus } = useDesktopShell()

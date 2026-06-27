@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Link } from '@/app/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 import { Search, Replace, Download, Check, FileAudio, Clock, Loader2, Save, X } from 'lucide-react'
 import AudioPlayer from '@/components/studio/audio-player'
 import SpeakerPanel from '@/components/studio/speaker-panel'
@@ -11,40 +11,51 @@ import type { DesktopApi, TranscriptionRecord } from '@shared/ipc'
 import { takeStudioRecord, setStudioRecord } from '@/lib/studio-store'
 import { useAppRoute } from '@/app/use-app-route'
 import { type SrtSegment } from '@/lib/srt-parser'
+import { secondsToDisplay } from '@/lib/utils'
+import { useSegmentSearch } from './hooks/use-segment-search'
+import { useSegmentSave } from './hooks/use-segment-save'
 
 interface StudioProps {
   desktop: DesktopApi
-}
-
-function secondsToDisplay(s: number): string {
-  if (!s || isNaN(s)) return '0:00'
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = Math.floor(s % 60)
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-  return `${m}:${String(sec).padStart(2, '0')}`
 }
 
 export default function Studio({ desktop }: StudioProps) {
   const [record, setRecord] = useState<TranscriptionRecord | null>(null)
   const [segments, setSegments] = useState<SrtSegment[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [replaceText, setReplaceText] = useState('')
-  const [showReplace, setShowReplace] = useState(false)
   const [activeSegment, setActiveSegment] = useState<number>(1)
   const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null)
-  const [isDirty, setIsDirty] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle')
   const { navigateTo } = useAppRoute()
   const seekToRef = useRef<((s: number) => void) | null>(null)
-  // Index of next replacement candidate within matching segments
 
-  function handleExport() {
+  const { isDirty, isSaving, saveStatus, handleSave, markDirty } = useSegmentSave(
+    record,
+    segments,
+    desktop,
+    setRecord
+  )
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    replaceText,
+    setReplaceText,
+    showReplace,
+    setShowReplace,
+    filteredSegments,
+    matchCount,
+    handleReplace,
+    handleReplaceAll
+  } = useSegmentSearch({
+    segments,
+    setSegments,
+    onMutation: markDirty,
+    onActivate: setActiveSegment
+  })
+
+  function handleExport(): void {
     if (record) {
-      // Pass the current record (with latest segments) to Export
-      const exportRecord = {
+      setStudioRecord({
         ...record,
         segments: segments.map((s) => ({
           id: s.id,
@@ -52,24 +63,18 @@ export default function Studio({ desktop }: StudioProps) {
           end: s.endSeconds,
           text: s.text
         }))
-      }
-      setStudioRecord(exportRecord)
+      })
     }
     navigateTo('export')
   }
 
-  const replaceIndexRef = useRef<number>(0)
-
   useEffect(() => {
     const rec = takeStudioRecord()
     setRecord(rec)
-
     if (!rec) {
       setLoading(false)
       return
     }
-
-    // Segments come embedded in the record — no file read needed
     const segs: SrtSegment[] = (rec.segments ?? []).map((s) => ({
       id: s.id,
       startSeconds: s.start,
@@ -85,11 +90,6 @@ export default function Studio({ desktop }: StudioProps) {
     setLoading(false)
   }, [])
 
-  // Reset replace index when search query changes
-  useEffect(() => {
-    replaceIndexRef.current = 0
-  }, [searchQuery])
-
   const handleTimeUpdate = useCallback((seconds: number) => {
     setSegments((segs) => {
       const active = segs.find((s) => seconds >= s.startSeconds && seconds < s.endSeconds)
@@ -98,108 +98,15 @@ export default function Studio({ desktop }: StudioProps) {
     })
   }, [])
 
-  function handleReplace() {
-    if (!searchQuery || !replaceText) return
-    const lower = searchQuery.toLowerCase()
-    const matching = segments.filter((s) => s.text.toLowerCase().includes(lower))
-    if (matching.length === 0) return
-
-    const idx = replaceIndexRef.current % matching.length
-    const target = matching[idx]
-
-    setSegments((segs) =>
-      segs.map((s) =>
-        s.id === target.id
-          ? {
-              ...s,
-              text: s.text.replace(new RegExp(escapeRegex(searchQuery), 'i'), replaceText)
-            }
-          : s
-      )
-    )
-    setActiveSegment(target.id)
-    setIsDirty(true)
-    setSaveStatus('idle')
-    replaceIndexRef.current = (idx + 1) % matching.length
-  }
-
-  function handleReplaceAll() {
-    if (!searchQuery || !replaceText) return
-    const regex = new RegExp(escapeRegex(searchQuery), 'gi')
-    const lower = searchQuery.toLowerCase()
-    let changed = false
-    const newSegments = segments.map((s) => {
-      if (!s.text.toLowerCase().includes(lower)) return s
-      changed = true
-      return { ...s, text: s.text.replace(regex, replaceText) }
-    })
-    if (changed) {
-      setSegments(newSegments)
-      setIsDirty(true)
-      setSaveStatus('idle')
-    }
-  }
-
-  async function handleSave() {
-    if (!record) return
-    if (!record.outputDirectory) {
-      console.error('[Studio] outputDirectory is missing from record:', record)
-      setSaveStatus('error')
-      return
-    }
-    setIsSaving(true)
-    try {
-      const sep = record.outputDirectory.includes('/') ? '/' : '\\'
-      const metaPath = `${record.outputDirectory}${sep}whisper-studio.json`
-
-      const updatedRecord: TranscriptionRecord = {
-        ...record,
-        editedAt: Date.now(),
-        segments: segments.map((s) => ({
-          id: s.id,
-          start: s.startSeconds,
-          end: s.endSeconds,
-          text: s.text
-        }))
-      }
-      await desktop.writeTextFile(metaPath, JSON.stringify(updatedRecord, null, 2))
-
-      console.log('[Studio] Saved to:', metaPath)
-      setRecord(updatedRecord)
-      setIsDirty(false)
-      setSaveStatus('saved')
-      setTimeout(() => setSaveStatus('idle'), 4000)
-    } catch (err) {
-      console.error('[Studio] Save failed:', err)
-      setSaveStatus('error')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  function handleSegmentTextChange(id: number, newText: string) {
+  function handleSegmentTextChange(id: number, newText: string): void {
     setSegments((segs) => segs.map((s) => (s.id === id ? { ...s, text: newText } : s)))
-    setIsDirty(true)
-    setSaveStatus('idle')
+    markDirty()
   }
-
-  const filteredSegments = useMemo(
-    () =>
-      segments.filter((seg) =>
-        searchQuery ? seg.text.toLowerCase().includes(searchQuery.toLowerCase()) : true
-      ),
-    [segments, searchQuery]
-  )
-
-  const matchCount = searchQuery
-    ? segments.filter((s) => s.text.toLowerCase().includes(searchQuery.toLowerCase())).length
-    : 0
 
   const audioSrc = record?.sourceFilePath
   const fileName = record?.sourceFileName ?? captions.studio.header.title
   const modelDisplay = record?.model ?? captions.studio.header.model
 
-  // Compute stats from segments
   const srtDurationSeconds = segments.length > 0 ? segments[segments.length - 1].endSeconds : 0
   const effectiveDurationSeconds = record?.durationSeconds ?? srtDurationSeconds
 
@@ -422,8 +329,4 @@ export default function Studio({ desktop }: StudioProps) {
       />
     </div>
   )
-}
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

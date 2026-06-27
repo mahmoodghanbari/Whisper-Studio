@@ -6,7 +6,7 @@ import type {
   WhisperModelDownloadProgress
 } from '@shared/ipc'
 import { formatBytes } from '@/lib/utils'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 import DownloadedModels from './components/download-models'
 import AvailableModels from './components/available-models'
 import Prerequisites from './components/prerequisites'

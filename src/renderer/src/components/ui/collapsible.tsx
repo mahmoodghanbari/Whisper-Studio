@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 
 interface CollapsibleContextValue {
   open: boolean

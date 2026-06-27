@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import type { Dirent } from 'node:fs'
 import { readdir, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -8,6 +9,7 @@ import type {
   WhisperModelActionResult,
   WhisperModelDownloadProgress
 } from '../../../shared/ipc'
+import { createScopedCache } from './cache'
 
 const knownModelInfo: Record<string, { params: string }> = {
   tiny: { params: '39M' },
@@ -34,19 +36,10 @@ export const downloadableModelRepoIds = [
   'turbo'
 ] as const
 
-const cacheDurationMs = 5000
-let downloadedModelsCache: { checkedAt: number; value: DownloadedWhisperModelsResult } | null = null
-let downloadedModelsRequest: Promise<DownloadedWhisperModelsResult> | null = null
-
 type CommandResult = {
   exitCode: number
   stderr: string
   stdout: string
-}
-
-function clearDownloadedModelsCache(): void {
-  downloadedModelsCache = null
-  downloadedModelsRequest = null
 }
 
 function getWhisperCacheDir(): string {
@@ -96,10 +89,10 @@ async function findPython(): Promise<string | null> {
 
 async function scanDownloadedModels(): Promise<DownloadedWhisperModelsResult> {
   const cacheDir = getWhisperCacheDir()
-  let entries: Awaited<ReturnType<typeof readdir>>
+  let entries: Dirent<string>[]
 
   try {
-    entries = await readdir(cacheDir, { withFileTypes: true, encoding: 'utf8' })
+    entries = await readdir(cacheDir, { withFileTypes: true })
   } catch {
     return { models: [], totalSizeBytes: 0 }
   }
@@ -147,20 +140,11 @@ async function scanDownloadedModels(): Promise<DownloadedWhisperModelsResult> {
   }
 }
 
+const CACHE_DURATION_MS = 5000
+const downloadedModelsCache = createScopedCache(scanDownloadedModels, CACHE_DURATION_MS)
+
 export async function getDownloadedModels(): Promise<DownloadedWhisperModelsResult> {
-  if (downloadedModelsCache && Date.now() - downloadedModelsCache.checkedAt < cacheDurationMs) {
-    return downloadedModelsCache.value
-  }
-
-  if (!downloadedModelsRequest) {
-    downloadedModelsRequest = scanDownloadedModels().then((value) => {
-      downloadedModelsCache = { checkedAt: Date.now(), value }
-      downloadedModelsRequest = null
-      return value
-    })
-  }
-
-  return downloadedModelsRequest
+  return downloadedModelsCache.get()
 }
 
 export async function downloadModel(
@@ -217,7 +201,7 @@ export async function downloadModel(
   const result = await runCommand(python, [...prefixArgs, '-c', code])
 
   clearInterval(progressInterval)
-  clearDownloadedModelsCache()
+  downloadedModelsCache.invalidate()
   await emitCurrentProgress(result.exitCode === 0 ? 'complete' : 'error')
 
   return {
@@ -234,7 +218,7 @@ export async function deleteModel(id: string): Promise<WhisperModelActionResult>
 
   try {
     await rm(ptPath, { force: true })
-    clearDownloadedModelsCache()
+    downloadedModelsCache.invalidate()
     return { id, ok: true }
   } catch (error) {
     return {

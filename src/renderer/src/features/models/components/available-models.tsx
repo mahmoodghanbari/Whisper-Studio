@@ -3,7 +3,7 @@ import { Download, Loader2, Cpu, Zap, Star, Boxes, Languages } from 'lucide-reac
 import type { DownloadedWhisperModel, WhisperModelDownloadProgress } from '@shared/ipc'
 import { Button } from '@/components/ui/button'
 import { formatBytes } from '@/lib/utils'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 
 const availableCaptions = captions.models.available
 type AvailableModel = (typeof availableCaptions.items)[number]

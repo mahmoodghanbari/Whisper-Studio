@@ -1,22 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import { Play, Pause, Volume2, VolumeX, Repeat, Rewind, FastForward } from 'lucide-react'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { secondsToDisplay } from '@/lib/utils'
 
 interface AudioPlayerProps {
   src?: string
   knownDuration?: number
   onTimeUpdate?: (seconds: number) => void
   seekToRef?: React.MutableRefObject<((seconds: number) => void) | null>
-}
-
-function secondsToDisplay(s: number): string {
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = Math.floor(s % 60)
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-  return `${m}:${String(sec).padStart(2, '0')}`
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2]

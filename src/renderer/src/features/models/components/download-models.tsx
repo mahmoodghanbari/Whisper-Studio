@@ -12,7 +12,7 @@ import {
 import type { DownloadedWhisperModel } from '@shared/ipc'
 import { Button } from '@/components/ui/button'
 import { formatBytes } from '@/lib/utils'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 
 const downloadedCaptions = captions.models.downloaded
 

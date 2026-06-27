@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 import { cn } from '@/lib/utils'
 
 interface TabsContextValue {

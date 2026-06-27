@@ -234,7 +234,7 @@ export default function Export({ desktop }: ExportProps) {
 // import { FALLBACK_FORMAT_ICON, FORMAT_ICONS } from '@/lib/format-icons'
 // import { Button } from '@/components/ui/button'
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-// import { captions } from '@/captions'
+// import { captions } from '@/lib/strings'
 // import { ArrowLeft, Copy, Check, Download, FolderOpen, Eye } from 'lucide-react'
 
 // const FORMATS = captions.export.formats.map((format) => ({

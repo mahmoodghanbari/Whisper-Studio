@@ -15,7 +15,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import type { DesktopApi, PrerequisiteCheckStatus } from '@shared/ipc'
 import { Button } from '@/components/ui/button'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 
 const prerequisitesCaptions = captions.models.prerequisites
 type PrerequisiteId = (typeof prerequisitesCaptions.items)[number]['id']

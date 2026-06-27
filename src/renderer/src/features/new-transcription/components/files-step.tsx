@@ -9,7 +9,7 @@ import {
 import { Upload, FileAudio, FileVideo, X, Clock, HardDrive } from 'lucide-react'
 import type { DesktopApi } from '@shared/ipc'
 import { formatBytes } from '@/lib/utils'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
 
 export interface TranscriptionFile {
   duration: string

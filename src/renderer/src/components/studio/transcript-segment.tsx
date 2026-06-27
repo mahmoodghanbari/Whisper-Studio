@@ -1,6 +1,7 @@
 import React from 'react'
 import { User, Edit3, Check, Copy } from 'lucide-react'
-import { captions } from '@/captions'
+import { captions } from '@/lib/strings'
+import type { SrtSegment } from '@/lib/srt-parser'
 
 const speakerPanel = captions.studio.speakerPanel
 const SPEAKER_COLORS = {
@@ -21,6 +22,15 @@ const SPEAKER_COLORS = {
   }
 }
 
+interface TranscriptSegmentProps {
+  isActive: boolean
+  onActivate: (id: number) => void
+  onTextChange: (id: number, newText: string) => void
+  onTimeClick: () => void
+  searchQuery: string
+  seg: SrtSegment
+}
+
 export default function TranscriptSegment({
   seg,
   isActive,
@@ -28,12 +38,12 @@ export default function TranscriptSegment({
   onActivate,
   onTimeClick,
   onTextChange
-}) {
+}: TranscriptSegmentProps) {
   const [editing, setEditing] = React.useState(false)
   const [text, setText] = React.useState(seg.text)
   const colors = SPEAKER_COLORS[seg.speaker] || SPEAKER_COLORS[speakerPanel.speakers[0].speaker]
 
-  const renderText = (content) => {
+  const renderText = (content: string) => {
     if (!searchQuery) return content
     const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     return content.split(new RegExp(`(${escaped})`, 'gi')).map((part, i) =>
@@ -63,7 +73,7 @@ export default function TranscriptSegment({
       <button
         onClick={(e) => {
           e.stopPropagation()
-          onTimeClick(seg.time)
+          onTimeClick()
         }}
         className="shrink-0 flex flex-col items-center gap-1 pt-0.5 w-14"
       >
