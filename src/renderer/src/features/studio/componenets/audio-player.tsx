@@ -82,6 +82,12 @@ export default function AudioPlayer({
     audio.currentTime = ratio * totalDuration
   }
 
+  function syncCurrentTime(seconds: number) {
+    currentTimeRef.current = seconds
+    setCurrentSeconds(seconds)
+    onTimeUpdate?.(seconds)
+  }
+
   function handleVolumeChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = parseFloat(e.target.value)
     setVolume(v)
@@ -99,7 +105,8 @@ export default function AudioPlayer({
     const audio = audioRef.current
     if (!audio) return
     const total = isFinite(audio.duration) ? audio.duration : (knownDuration ?? Infinity)
-    audio.currentTime = Math.max(0, Math.min(total, currentTimeRef.current + delta))
+    const nextTime = Math.max(0, Math.min(total, audio.currentTime + delta))
+    audio.currentTime = nextTime
   }
 
   const effectiveDuration = durationSeconds || knownDuration || 0
@@ -120,9 +127,11 @@ export default function AudioPlayer({
           onEnded={() => setIsPlaying(false)}
           onTimeUpdate={() => {
             const t = audioRef.current?.currentTime ?? 0
-            currentTimeRef.current = t
-            setCurrentSeconds(t)
-            onTimeUpdate?.(t)
+            syncCurrentTime(t)
+          }}
+          onSeeked={() => {
+            const t = audioRef.current?.currentTime ?? 0
+            syncCurrentTime(t)
           }}
           onLoadedMetadata={() => {
             const audio = audioRef.current

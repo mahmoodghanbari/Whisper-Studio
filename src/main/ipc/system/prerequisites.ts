@@ -45,6 +45,8 @@ const installerUrls: Partial<Record<PrerequisiteCheckId, string>> = {
   cuda: 'https://developer.nvidia.com/cuda-downloads'
 }
 
+const CUDA_TORCH_INDEX_URL = 'https://download.pytorch.org/whl/cu124'
+
 function runCommand(
   command: string,
   args: readonly string[],
@@ -232,17 +234,61 @@ async function checkPythonPackages(python: CommandResult | null): Promise<Prereq
   )
 }
 
+async function checkCudaWithTorch(python: CommandResult | null): Promise<PrerequisiteCheck> {
+  if (!python) {
+    return { id: 'cuda', installed: null, status: 'missing' }
+  }
+
+  const code = [
+    'import json',
+    'result = {"available": False, "cuda": None}',
+    'try:',
+    '    import torch',
+    '    result["available"] = bool(torch.cuda.is_available())',
+    '    result["cuda"] = getattr(torch.version, "cuda", None)',
+    'except Exception:',
+    '    pass',
+    'print(json.dumps(result))'
+  ].join('\n')
+
+  const output = await runCommand(python.command, [...python.prefixArgs, '-c', code], 5000)
+  const jsonLine =
+    output
+      ?.split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.startsWith('{') && line.endsWith('}')) ?? null
+
+  if (!jsonLine) {
+    return { id: 'cuda', installed: null, status: 'missing' }
+  }
+
+  try {
+    const parsed = JSON.parse(jsonLine) as { available?: boolean; cuda?: string | null }
+
+    if (!parsed.available) {
+      return { id: 'cuda', installed: null, status: 'missing' }
+    }
+
+    return {
+      id: 'cuda',
+      installed: parsed.cuda ?? 'detected',
+      status: 'ok'
+    }
+  } catch {
+    return { id: 'cuda', installed: null, status: 'missing' }
+  }
+}
+
 async function checkPrerequisites(): Promise<PrerequisiteCheck[]> {
   const { check: pythonCheck, python } = await checkPython()
-  const [ffmpegCheck, cudaCheck, pythonPackageChecks] = await Promise.all([
+  const [ffmpegCheck, pythonPackageChecks, cudaByTorchCheck] = await Promise.all([
     checkCommandVersion('ffmpeg', [{ command: 'ffmpeg', args: ['-version'], timeoutMs: 1500 }]),
-    checkCommandVersion(
-      'cuda',
-      [{ command: 'nvcc', args: ['--version'], timeoutMs: 1500 }],
-      [11, 8]
-    ),
-    checkPythonPackages(python)
+    checkPythonPackages(python),
+    checkCudaWithTorch(python)
   ])
+
+  // For Whisper GPU execution, runtime CUDA availability in torch is the source of truth.
+  const cudaCheck = cudaByTorchCheck
   const checks = [pythonCheck, ffmpegCheck, cudaCheck, ...pythonPackageChecks]
 
   return prerequisiteIds.map(
@@ -263,6 +309,69 @@ function clearPrerequisiteCache(): void {
 export async function installPrerequisite(
   id: PrerequisiteCheckId
 ): Promise<PrerequisiteInstallResult> {
+  if (id === 'cuda') {
+    const python = await findPython()
+
+    if (!python) {
+      await shell.openExternal(installerUrls.cuda as string)
+
+      return {
+        action: 'opened',
+        id,
+        ok: true
+      }
+    }
+
+    const args = [
+      ...python.prefixArgs,
+      '-m',
+      'pip',
+      'install',
+      '--upgrade',
+      'torch',
+      'torchvision',
+      'torchaudio',
+      '--index-url',
+      CUDA_TORCH_INDEX_URL
+    ]
+    const result = await runDetailedCommand(python.command, args)
+
+    if (result.exitCode !== 0) {
+      return {
+        action: 'installed',
+        command: `${python.command} ${args.join(' ')}`,
+        id,
+        ok: false,
+        stderr: result.stderr,
+        stdout: result.stdout
+      }
+    }
+
+    const cudaCheck = await checkCudaWithTorch(python)
+    clearPrerequisiteCache()
+
+    if (cudaCheck.status === 'ok') {
+      return {
+        action: 'installed',
+        command: `${python.command} ${args.join(' ')}`,
+        id,
+        ok: true,
+        stderr: result.stderr,
+        stdout: result.stdout
+      }
+    }
+
+    return {
+      action: 'installed',
+      command: `${python.command} ${args.join(' ')}`,
+      id,
+      ok: false,
+      stderr:
+        'CUDA packages were installed, but GPU is still unavailable. Install/update NVIDIA drivers and ensure a CUDA-capable NVIDIA GPU is present.',
+      stdout: result.stdout
+    }
+  }
+
   const pipPackage = pipInstallPackages[id]
 
   if (pipPackage) {

@@ -78,7 +78,10 @@ function createMainWindow(): BrowserWindow {
 app.whenReady().then(() => {
   protocol.handle('local-file', (request) => {
     const filePath = decodeURIComponent(request.url.slice('local-file:///'.length))
-    return net.fetch(pathToFileURL(filePath).toString())
+    return net.fetch(pathToFileURL(filePath).toString(), {
+      method: request.method,
+      headers: request.headers
+    })
   })
 
   registerSystemHandlers(() => mainWindow)

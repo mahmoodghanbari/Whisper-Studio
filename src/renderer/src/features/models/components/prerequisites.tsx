@@ -42,7 +42,7 @@ const prerequisiteIcons: Record<PrerequisiteId, LucideIcon> = {
   'openai-whisper': Package,
   torch: Terminal
 }
-const externalInstallerIds = new Set<PrerequisiteId>(['python', 'ffmpeg', 'cuda'])
+const externalInstallerIds = new Set<PrerequisiteId>(['python', 'ffmpeg'])
 
 const statusConfig = {
   ok: {
