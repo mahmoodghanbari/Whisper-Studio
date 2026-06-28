@@ -1,8 +1,13 @@
-import { Box, Circle, Cpu, Dot, HardDrive } from 'lucide-react'
+import { Box, Circle, Cpu, Dot, HardDrive, Monitor } from 'lucide-react'
 import type { SystemStatus } from '@shared/ipc'
 import { captions } from '@/lib/strings'
 
-const metricIcons = [Cpu, HardDrive, Box] as const
+const metricIconByLabel: Record<string, typeof Circle> = {
+  cpu: Cpu,
+  gpu: Monitor,
+  memory: HardDrive,
+  platform: Box
+}
 
 interface SystemStatusBarProps {
   status: SystemStatus | null
@@ -15,6 +20,11 @@ export function SystemStatusBar({ status }: SystemStatusBarProps): JSX.Element {
     activity: captions.statusBar.idle,
     metrics: captions.statusBar.metrics
   }
+  const visibleMetrics = displayStatus.metrics.filter((metric) => {
+    const isGpu = metric.label.toLowerCase() === 'gpu'
+    const isUnknown = metric.value.trim().toLowerCase() === 'unknown'
+    return !(isGpu && isUnknown)
+  })
 
   return (
     <footer
@@ -36,8 +46,9 @@ export function SystemStatusBar({ status }: SystemStatusBarProps): JSX.Element {
       </div>
 
       <div className="flex min-w-0 items-center justify-end gap-3 overflow-hidden">
-        {displayStatus.metrics.map((metric, index) => {
-          const MetricIcon = metricIcons[index] ?? Circle
+        {visibleMetrics.map((metric, index) => {
+          const MetricIcon =
+            metricIconByLabel[metric.label.toLowerCase()] ?? (index === 0 ? Cpu : Circle)
 
           return (
             <div key={metric.label} className="flex min-w-0 items-center gap-1.5">

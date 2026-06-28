@@ -157,7 +157,8 @@ function checkVersion(
   }
 }
 
-async function findPython(): Promise<CommandResult | null> {
+// Shared Python discovery for system checks and model management.
+export async function findPython(): Promise<CommandResult | null> {
   const candidates = [
     { command: 'python', args: ['--version'], timeoutMs: 2500 },
     { command: 'python3', args: ['--version'], timeoutMs: 1200 },

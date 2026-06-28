@@ -10,6 +10,7 @@ import type {
   WhisperModelDownloadProgress
 } from '../../../shared/ipc'
 import { createScopedCache } from './cache'
+import { findPython } from './prerequisites'
 
 // Known model metadata used to enrich local cache scan results.
 const knownModelInfo: Record<string, { params: string }> = {
@@ -45,9 +46,6 @@ type CommandResult = {
   stderr: string
   stdout: string
 }
-
-const PYTHON_CANDIDATES = ['python', 'python3', 'py'] as const
-const PYTHON_DISCOVERY_TIMEOUT_MS = 2500
 
 function isKnownDownloadableModel(
   modelId: string
@@ -87,20 +85,6 @@ function runCommand(
       }
     )
   })
-}
-
-// Finds any usable Python launcher available on the system.
-async function findPython(): Promise<string | null> {
-  for (const command of PYTHON_CANDIDATES) {
-    const args = command === 'py' ? ['-3', '--version'] : ['--version']
-    const result = await runCommand(command, args, PYTHON_DISCOVERY_TIMEOUT_MS)
-
-    if (result.exitCode === 0 || result.stdout || result.stderr) {
-      return command
-    }
-  }
-
-  return null
 }
 
 // Scans the Whisper cache directory for downloaded model files.
@@ -212,13 +196,12 @@ export async function downloadModel(
     void emitCurrentProgress()
   }, 750)
 
-  const prefixArgs = python === 'py' ? ['-3'] : []
   const code = [
     'import whisper, json',
     `whisper.load_model(${JSON.stringify(modelId)}, download_root=${JSON.stringify(cacheDir)})`,
     'print(json.dumps({"ok": True}))'
   ].join('; ')
-  const result = await runCommand(python, [...prefixArgs, '-c', code])
+  const result = await runCommand(python.command, [...python.prefixArgs, '-c', code])
 
   clearInterval(progressInterval)
   downloadedModelsCache.invalidate()

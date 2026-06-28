@@ -39,9 +39,10 @@ export const captions = {
     ready: 'System Ready',
     idle: 'Idle',
     metrics: [
-      { label: 'GPU', value: 'RTX 4090' },
-      { label: 'VRAM', value: '24 GB' },
-      { label: 'Model', value: 'large-v3' }
+      { label: 'CPU', value: 'Unknown' },
+      { label: 'GPU', value: 'Unknown' },
+      { label: 'Memory', value: 'Unknown' },
+      { label: 'Platform', value: 'Unknown' }
     ]
   },
   routes: {

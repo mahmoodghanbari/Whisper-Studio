@@ -42,6 +42,7 @@ const browserDesktopApi: DesktopApi = {
         label: 'CPU',
         value: navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} cores` : 'Browser'
       },
+      { label: 'GPU', value: 'Browser' },
       { label: 'Memory', value: 'Browser' },
       { label: 'Platform', value: detectBrowserPlatform() }
     ]
