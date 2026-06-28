@@ -219,7 +219,9 @@ export default function AudioPlayer({
                 )}
               </TooltipTrigger>
               <TooltipContent side="top">
-                {isMuted ? captions.audioPlayer.tooltips.unmute : captions.audioPlayer.tooltips.mute}
+                {isMuted
+                  ? captions.audioPlayer.tooltips.unmute
+                  : captions.audioPlayer.tooltips.mute}
               </TooltipContent>
             </Tooltip>
             <input
@@ -239,7 +241,9 @@ export default function AudioPlayer({
             >
               {speed === 1 ? '1×' : `${speed}×`}
             </TooltipTrigger>
-            <TooltipContent side="top">{captions.audioPlayer.tooltips.playbackSpeed}</TooltipContent>
+            <TooltipContent side="top">
+              {captions.audioPlayer.tooltips.playbackSpeed}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger
@@ -249,7 +253,9 @@ export default function AudioPlayer({
               <Repeat className="w-3.5 h-3.5" />
             </TooltipTrigger>
             <TooltipContent side="top">
-              {isLooping ? captions.audioPlayer.tooltips.loopOn : captions.audioPlayer.tooltips.loopOff}
+              {isLooping
+                ? captions.audioPlayer.tooltips.loopOn
+                : captions.audioPlayer.tooltips.loopOff}
             </TooltipContent>
           </Tooltip>
         </div>
