@@ -306,116 +306,99 @@ function clearPrerequisiteCache(): void {
   prerequisitesCache.invalidate()
 }
 
-export async function installPrerequisite(
-  id: PrerequisiteCheckId
+// ---------------------------------------------------------------------------
+// Install strategies — one function per prerequisite type.
+// To add a new prerequisite: add its id to `prerequisiteIds`, add a check to
+// `checkPrerequisites`, and add one entry to `INSTALLERS` below.
+// ---------------------------------------------------------------------------
+
+async function installViaPip(
+  id: PrerequisiteCheckId,
+  pipPackage: string
 ): Promise<PrerequisiteInstallResult> {
-  if (id === 'cuda') {
-    const python = await findPython()
+  const python = await findPython()
 
-    if (!python) {
-      await shell.openExternal(installerUrls.cuda as string)
+  if (!python) {
+    return { action: 'installed', id, ok: false, stderr: 'Python was not found. Install Python first.' }
+  }
 
-      return {
-        action: 'opened',
-        id,
-        ok: true
-      }
-    }
+  const args = [...python.prefixArgs, '-m', 'pip', 'install', pipPackage]
+  const result = await runDetailedCommand(python.command, args)
+  clearPrerequisiteCache()
 
-    const args = [
-      ...python.prefixArgs,
-      '-m',
-      'pip',
-      'install',
-      '--upgrade',
-      'torch',
-      'torchvision',
-      'torchaudio',
-      '--index-url',
-      CUDA_TORCH_INDEX_URL
-    ]
-    const result = await runDetailedCommand(python.command, args)
+  return {
+    action: 'installed',
+    command: `${python.command} ${args.join(' ')}`,
+    id,
+    ok: result.exitCode === 0,
+    stderr: result.stderr,
+    stdout: result.stdout
+  }
+}
 
-    if (result.exitCode !== 0) {
-      return {
-        action: 'installed',
-        command: `${python.command} ${args.join(' ')}`,
-        id,
-        ok: false,
-        stderr: result.stderr,
-        stdout: result.stdout
-      }
-    }
+async function installViaUrl(
+  id: PrerequisiteCheckId,
+  url: string
+): Promise<PrerequisiteInstallResult> {
+  await shell.openExternal(url)
+  return { action: 'opened', id, ok: true }
+}
 
-    const cudaCheck = await checkCudaWithTorch(python)
-    clearPrerequisiteCache()
+async function installCuda(): Promise<PrerequisiteInstallResult> {
+  const id: PrerequisiteCheckId = 'cuda'
+  const python = await findPython()
 
-    if (cudaCheck.status === 'ok') {
-      return {
-        action: 'installed',
-        command: `${python.command} ${args.join(' ')}`,
-        id,
-        ok: true,
-        stderr: result.stderr,
-        stdout: result.stdout
-      }
-    }
+  if (!python) {
+    await shell.openExternal(installerUrls.cuda as string)
+    return { action: 'opened', id, ok: true }
+  }
 
+  const args = [
+    ...python.prefixArgs,
+    '-m', 'pip', 'install', '--upgrade',
+    'torch', 'torchvision', 'torchaudio',
+    '--index-url', CUDA_TORCH_INDEX_URL
+  ]
+  const result = await runDetailedCommand(python.command, args)
+
+  if (result.exitCode !== 0) {
     return {
       action: 'installed',
       command: `${python.command} ${args.join(' ')}`,
       id,
       ok: false,
-      stderr:
-        'CUDA packages were installed, but GPU is still unavailable. Install/update NVIDIA drivers and ensure a CUDA-capable NVIDIA GPU is present.',
-      stdout: result.stdout
-    }
-  }
-
-  const pipPackage = pipInstallPackages[id]
-
-  if (pipPackage) {
-    const python = await findPython()
-
-    if (!python) {
-      return {
-        action: 'installed',
-        id,
-        ok: false,
-        stderr: 'Python was not found. Install Python first.'
-      }
-    }
-
-    const args = [...python.prefixArgs, '-m', 'pip', 'install', pipPackage]
-    const result = await runDetailedCommand(python.command, args)
-    clearPrerequisiteCache()
-
-    return {
-      action: 'installed',
-      command: `${python.command} ${args.join(' ')}`,
-      id,
-      ok: result.exitCode === 0,
       stderr: result.stderr,
       stdout: result.stdout
     }
   }
 
-  const installerUrl = installerUrls[id]
-
-  if (installerUrl) {
-    await shell.openExternal(installerUrl)
-
-    return {
-      action: 'opened',
-      id,
-      ok: true
-    }
-  }
+  const cudaCheck = await checkCudaWithTorch(python)
+  clearPrerequisiteCache()
 
   return {
-    action: 'opened',
+    action: 'installed',
+    command: `${python.command} ${args.join(' ')}`,
     id,
-    ok: false,
-    stderr: 'No installer is configured for this prerequisite.'
+    ok: cudaCheck.status === 'ok',
+    stderr: cudaCheck.status === 'ok'
+      ? result.stderr
+      : 'CUDA packages were installed, but GPU is still unavailable. Install/update NVIDIA drivers and ensure a CUDA-capable NVIDIA GPU is present.',
+    stdout: result.stdout
   }
+}
+
+type Installer = () => Promise<PrerequisiteInstallResult>
+
+const INSTALLERS: Record<PrerequisiteCheckId, Installer> = {
+  python: () => installViaUrl('python', installerUrls.python as string),
+  ffmpeg: () => installViaUrl('ffmpeg', installerUrls.ffmpeg as string),
+  cuda: () => installCuda(),
+  'openai-whisper': () => installViaPip('openai-whisper', pipInstallPackages['openai-whisper'] as string),
+  torch: () => installViaPip('torch', pipInstallPackages.torch as string)
+}
+
+export async function installPrerequisite(
+  id: PrerequisiteCheckId
+): Promise<PrerequisiteInstallResult> {
+  return INSTALLERS[id]()
 }
