@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
-import { join } from 'node:path'
+import { open, stat } from 'node:fs/promises'
+import { extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { registerSystemHandlers } from './ipc/system'
 import { registerWhisperHandlers } from './ipc/whisper/index'
@@ -14,6 +15,31 @@ let mainWindow: BrowserWindow | null = null
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 const shouldOpenDevTools = process.env.ELECTRON_OPEN_DEVTOOLS === 'true'
+
+function getMimeType(filePath: string): string {
+  const ext = extname(filePath).toLowerCase()
+
+  switch (ext) {
+    case '.mp3':
+      return 'audio/mpeg'
+    case '.wav':
+      return 'audio/wav'
+    case '.m4a':
+      return 'audio/mp4'
+    case '.aac':
+      return 'audio/aac'
+    case '.ogg':
+      return 'audio/ogg'
+    case '.flac':
+      return 'audio/flac'
+    case '.mp4':
+      return 'video/mp4'
+    case '.webm':
+      return 'video/webm'
+    default:
+      return 'application/octet-stream'
+  }
+}
 
 function isAllowedNavigation(navigationUrl: string): boolean {
   if (navigationUrl.startsWith('file://')) {
@@ -76,11 +102,64 @@ function createMainWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
-  protocol.handle('local-file', (request) => {
+  protocol.handle('local-file', async (request) => {
     const filePath = decodeURIComponent(request.url.slice('local-file:///'.length))
-    return net.fetch(pathToFileURL(filePath).toString(), {
-      method: request.method,
-      headers: request.headers
+
+    const rangeHeader = request.headers.get('range')
+
+    if (!rangeHeader) {
+      return net.fetch(pathToFileURL(filePath).toString(), {
+        method: request.method,
+        headers: request.headers
+      })
+    }
+
+    const fileStats = await stat(filePath)
+    const totalSize = fileStats.size
+    const match = /^bytes=(\d+)-(\d*)$/i.exec(rangeHeader.trim())
+
+    if (!match) {
+      return new Response(null, {
+        status: 416,
+        headers: {
+          'Accept-Ranges': 'bytes',
+          'Content-Range': `bytes */${totalSize}`
+        }
+      })
+    }
+
+    const start = Number(match[1])
+    const end = match[2] ? Number(match[2]) : totalSize - 1
+
+    if (Number.isNaN(start) || Number.isNaN(end) || start > end || start >= totalSize) {
+      return new Response(null, {
+        status: 416,
+        headers: {
+          'Accept-Ranges': 'bytes',
+          'Content-Range': `bytes */${totalSize}`
+        }
+      })
+    }
+
+    const clampedEnd = Math.min(end, totalSize - 1)
+    const length = clampedEnd - start + 1
+    const buffer = Buffer.alloc(length)
+    const handle = await open(filePath, 'r')
+
+    try {
+      await handle.read(buffer, 0, length, start)
+    } finally {
+      await handle.close()
+    }
+
+    return new Response(request.method.toUpperCase() === 'HEAD' ? null : buffer, {
+      status: 206,
+      headers: {
+        'Accept-Ranges': 'bytes',
+        'Content-Length': String(length),
+        'Content-Range': `bytes ${start}-${clampedEnd}/${totalSize}`,
+        'Content-Type': getMimeType(filePath)
+      }
     })
   })
 

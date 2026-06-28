@@ -14,6 +14,30 @@ interface AudioPlayerProps {
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2]
 
+function resolveMediaSource(input: string | undefined): string | undefined {
+  if (!input) {
+    return undefined
+  }
+
+  if (input.startsWith('local-file://')) {
+    return input
+  }
+
+  if (input.startsWith('file://')) {
+    return input.replace(/^file:\/\//, 'local-file://')
+  }
+
+  if (/^[A-Za-z]:[\\/]/.test(input)) {
+    return `local-file:///${encodeURI(input.replace(/\\/g, '/'))}`
+  }
+
+  if (input.startsWith('/')) {
+    return `local-file://${encodeURI(input)}`
+  }
+
+  return input
+}
+
 export default function AudioPlayer({
   src,
   knownDuration,
@@ -117,11 +141,7 @@ export default function AudioPlayer({
       {src && (
         <audio
           ref={audioRef}
-          src={(() => {
-            if (!src) return undefined
-            if (src.startsWith('local-file://')) return src
-            return 'local-file:///' + src.replace(/\\/g, '/')
-          })()}
+          src={resolveMediaSource(src)}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={() => setIsPlaying(false)}
