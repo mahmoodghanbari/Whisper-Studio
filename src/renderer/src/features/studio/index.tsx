@@ -1,4 +1,3 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Link } from '@/app/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,38 +6,34 @@ import { Search, Replace, Download, Check, FileAudio, Clock, Loader2, Save, X } 
 import AudioPlayer from '@/features/studio/components/audio-player'
 import SpeakerPanel from '@/features/studio/components/speaker-panel'
 import TranscriptSegment from '@/features/studio/components/transcript-segment'
-import type { FileSystemApi, TranscriptionRecord } from '@shared/ipc'
-import { takeStudioRecord, setStudioRecord } from '@/lib/studio-store'
+import type { FileSystemApi } from '@shared/ipc'
+import { useStudioContext } from '@/lib/studio-context'
 import { useAppRoute } from '@/app/use-app-route'
-import { type SrtSegment } from '@/lib/srt-parser'
-import { secondsToDisplay } from '@/lib/utils'
-import { useSegmentSearch } from './hooks/use-segment-search'
-import { useSegmentSave } from './hooks/use-segment-save'
+import { useTranscriptEditor } from './hooks/use-transcript-editor'
 
 interface StudioProps {
   desktop: FileSystemApi
 }
 
 export default function Studio({ desktop }: StudioProps) {
-  const [record, setRecord] = useState<TranscriptionRecord | null>(null)
-  const [segments, setSegments] = useState<SrtSegment[]>([])
-  const [loading, setLoading] = useState(true)
-  const [activeSegment, setActiveSegment] = useState<number>(1)
-  const [activeSpeaker, setActiveSpeaker] = useState<string | null>(null)
-  const [followPlayback, setFollowPlayback] = useState(true)
+  const { record, setRecord } = useStudioContext()
   const { navigateTo } = useAppRoute()
-  const seekToRef = useRef<((s: number) => void) | null>(null)
-  const transcriptScrollRef = useRef<HTMLDivElement>(null)
-  const isPlaybackDrivenSelectionRef = useRef(false)
-
-  const { isDirty, isSaving, saveStatus, handleSave, markDirty } = useSegmentSave(
-    record,
-    segments,
-    desktop,
-    setRecord
-  )
-
   const {
+    segments,
+    loading,
+    activeSegment,
+    setActiveSegment,
+    activeSpeaker,
+    setActiveSpeaker,
+    followPlayback,
+    setFollowPlayback,
+    seekToRef,
+    transcriptScrollRef,
+    isPlaybackDrivenSelectionRef,
+    isDirty,
+    isSaving,
+    saveStatus,
+    handleSave,
     searchQuery,
     setSearchQuery,
     replaceText,
@@ -48,17 +43,20 @@ export default function Studio({ desktop }: StudioProps) {
     filteredSegments,
     matchCount,
     handleReplace,
-    handleReplaceAll
-  } = useSegmentSearch({
-    segments,
-    setSegments,
-    onMutation: markDirty,
-    onActivate: setActiveSegment
-  })
+    handleReplaceAll,
+    handleTimeUpdate,
+    handleSegmentTextChange,
+    audioSrc,
+    fileName,
+    modelDisplay,
+    effectiveDurationSeconds,
+    durationDisplay,
+    panelStats
+  } = useTranscriptEditor(record, setRecord, desktop)
 
   function handleExport(): void {
     if (record) {
-      setStudioRecord({
+      setRecord({
         ...record,
         segments: segments.map((s) => ({
           id: s.id,
@@ -70,115 +68,6 @@ export default function Studio({ desktop }: StudioProps) {
     }
     navigateTo('export')
   }
-
-  useEffect(() => {
-    const rec = takeStudioRecord()
-    setRecord(rec)
-    if (!rec) {
-      setLoading(false)
-      return
-    }
-    const segs: SrtSegment[] = (rec.segments ?? []).map((s) => ({
-      id: s.id,
-      startSeconds: s.start,
-      endSeconds: s.end,
-      time: secondsToDisplay(s.start),
-      endTime: secondsToDisplay(s.end),
-      text: s.text,
-      speaker: '',
-      name: ''
-    }))
-    setSegments(segs)
-    if (segs.length > 0) setActiveSegment(segs[0].id)
-    setLoading(false)
-  }, [])
-
-  const handleTimeUpdate = useCallback(
-    (seconds: number) => {
-      const active = segments.find((s) => seconds >= s.startSeconds && seconds < s.endSeconds)
-
-      if (!active) {
-        return
-      }
-
-      isPlaybackDrivenSelectionRef.current = true
-      setActiveSegment((previous) => (previous === active.id ? previous : active.id))
-    },
-    [segments]
-  )
-
-  useEffect(() => {
-    if (!followPlayback) {
-      return
-    }
-
-    if (!isPlaybackDrivenSelectionRef.current) {
-      return
-    }
-
-    const container = transcriptScrollRef.current
-
-    if (!container) {
-      return
-    }
-
-    const target = container.querySelector<HTMLElement>(`[data-segment-id="${activeSegment}"]`)
-
-    if (!target) {
-      return
-    }
-
-    const containerRect = container.getBoundingClientRect()
-    const targetRect = target.getBoundingClientRect()
-    const isAbove = targetRect.top < containerRect.top
-    const isBelow = targetRect.bottom > containerRect.bottom
-
-    if (isAbove || isBelow) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }, [activeSegment, followPlayback])
-
-  function handleSegmentTextChange(id: number, newText: string): void {
-    setSegments((segs) => segs.map((s) => (s.id === id ? { ...s, text: newText } : s)))
-    markDirty()
-  }
-
-  const audioSrc = record?.sourceFilePath
-  const fileName = record?.sourceFileName ?? captions.studio.header.title
-  const modelDisplay = record?.model ?? captions.studio.header.model
-
-  const srtDurationSeconds = segments.length > 0 ? segments[segments.length - 1].endSeconds : 0
-  const effectiveDurationSeconds = record?.durationSeconds ?? srtDurationSeconds
-
-  const wordCount = useMemo(
-    () => segments.reduce((n, s) => n + s.text.split(/\s+/).filter(Boolean).length, 0),
-    [segments]
-  )
-  const durationMinutes = effectiveDurationSeconds / 60
-  const wpm = durationMinutes > 0 ? Math.round(wordCount / durationMinutes) : 0
-
-  function formatDuration(s: number): string {
-    if (!s) return '—'
-    const h = Math.floor(s / 3600)
-    const m = Math.floor((s % 3600) / 60)
-    if (h > 0) return `${h}h ${m}m`
-    const sec = Math.floor(s % 60)
-    return `${m}m ${sec}s`
-  }
-
-  const durationDisplay = effectiveDurationSeconds
-    ? secondsToDisplay(effectiveDurationSeconds)
-    : captions.studio.header.duration
-
-  const panelStats =
-    segments.length > 0
-      ? [
-          { label: 'Word Count', value: wordCount.toLocaleString() },
-          { label: 'Duration', value: formatDuration(effectiveDurationSeconds) },
-          { label: 'Confidence', value: '—' },
-          { label: 'WPM', value: wpm > 0 ? String(wpm) : '—' }
-        ]
-      : undefined
 
   return (
     <div className="flex flex-col h-full">

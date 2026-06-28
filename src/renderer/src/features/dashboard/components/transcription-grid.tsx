@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { TranscriptionApi, TranscriptionRecord } from '@shared/ipc'
 import { Mic, Clock, FileAudio, Trash2, Loader2, FolderOpen } from 'lucide-react'
-import { setStudioRecord } from '@/lib/studio-store'
+import { useStudioContext } from '@/lib/studio-context'
 import { captions } from '@/lib/strings'
 import { useAppRoute } from '@/app/use-app-route'
 import { Button } from '@/components/ui/button'
@@ -45,9 +45,10 @@ export default function TranscriptionGrid({ desktop }: TranscriptionGridProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const { navigateTo } = useAppRoute()
+  const { setRecord } = useStudioContext()
 
   function openInStudio(item: TranscriptionRecord) {
-    setStudioRecord(item)
+    setRecord(item)
     navigateTo('studio')
   }
 

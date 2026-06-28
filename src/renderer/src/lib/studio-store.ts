@@ -1,13 +1,2 @@
-import type { TranscriptionRecord } from '@shared/ipc'
-
-let pendingRecord: TranscriptionRecord | null = null
-
-export function setStudioRecord(record: TranscriptionRecord): void {
-  pendingRecord = record
-}
-
-export function takeStudioRecord(): TranscriptionRecord | null {
-  const record = pendingRecord
-  pendingRecord = null
-  return record
-}
+// This module has been superseded by StudioContext (src/renderer/src/lib/studio-context.tsx).
+// It is kept as an empty file so git history remains legible.

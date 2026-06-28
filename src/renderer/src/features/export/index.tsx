@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
-import type { FileSystemApi, TranscriptionRecord } from '@shared/ipc'
-import { takeStudioRecord } from '@/lib/studio-store'
+import { useState } from 'react'
+import type { FileSystemApi } from '@shared/ipc'
+import { useStudioContext } from '@/lib/studio-context'
 import {
   generate,
   type ExportFormat,
@@ -19,19 +19,13 @@ interface ExportProps {
 const FORMATS: ExportFormat[] = ['srt', 'vtt', 'txt', 'tsv']
 
 export default function Export({ desktop }: ExportProps) {
-  const [record, setRecord] = useState<TranscriptionRecord | null>(null)
+  const { record } = useStudioContext()
   const [activeFormat, setActiveFormat] = useState<ExportFormat>('srt')
   const [saving, setSaving] = useState<ExportFormat | null>(null)
   const [savingAll, setSavingAll] = useState(false)
   const [saved, setSaved] = useState<Set<ExportFormat>>(new Set())
   const [saveDir, setSaveDir] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    // Export is always reached from Studio — pick up same record
-    const rec = takeStudioRecord()
-    if (rec) setRecord(rec)
-  }, [])
 
   const segments = record?.segments ?? []
   const preview = segments.length > 0 ? generate(activeFormat, segments) : ''

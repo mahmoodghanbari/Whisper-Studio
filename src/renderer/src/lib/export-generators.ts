@@ -61,15 +61,19 @@ export const FORMAT_DESCRIPTIONS: Record<ExportFormat, string> = {
   tsv: 'Tab-separated values, import into spreadsheets'
 }
 
+// ---------------------------------------------------------------------------
+// Format registry — add a new export format here without touching `generate`.
+// ---------------------------------------------------------------------------
+
+type GeneratorFn = (segments: WhisperSegment[]) => string
+
+const GENERATORS: Record<ExportFormat, GeneratorFn> = {
+  srt: generateSrt,
+  vtt: generateVtt,
+  txt: generateTxt,
+  tsv: generateTsv
+}
+
 export function generate(format: ExportFormat, segments: WhisperSegment[]): string {
-  switch (format) {
-    case 'srt':
-      return generateSrt(segments)
-    case 'vtt':
-      return generateVtt(segments)
-    case 'txt':
-      return generateTxt(segments)
-    case 'tsv':
-      return generateTsv(segments)
-  }
+  return GENERATORS[format](segments)
 }

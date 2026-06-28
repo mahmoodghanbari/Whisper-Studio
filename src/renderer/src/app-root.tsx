@@ -5,6 +5,7 @@ import { useDesktopShell } from './app/use-desktop-shell'
 import { AppSidebar } from './components/app-sidebar'
 import { SystemStatusBar } from './components/system-status-bar'
 import { TitleBar } from './components/title-bar'
+import { StudioProvider } from './lib/studio-context'
 import { captions } from './lib/strings'
 
 // ---------------------------------------------------------------------------
@@ -71,9 +72,11 @@ export function App(): JSX.Element {
       <div className="grid min-h-0 grid-cols-[auto_minmax(0,1fr)] overflow-hidden">
         <AppSidebar activeRoute={activeRoute} onNavigate={navigateTo} />
         <main className="shell-main min-h-0 overflow-x-hidden overflow-y-auto bg-background">
-          <ErrorBoundary>
-            <AppRouteView activeRoute={activeRoute} desktop={desktop} />
-          </ErrorBoundary>
+          <StudioProvider>
+            <ErrorBoundary>
+              <AppRouteView activeRoute={activeRoute} desktop={desktop} />
+            </ErrorBoundary>
+          </StudioProvider>
         </main>
       </div>
 

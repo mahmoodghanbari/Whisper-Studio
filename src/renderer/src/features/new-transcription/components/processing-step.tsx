@@ -5,7 +5,7 @@ import type {
   WhisperOutputFile,
   WhisperProgressPhase
 } from '@shared/ipc'
-import { setStudioRecord } from '@/lib/studio-store'
+import { useStudioContext } from '@/lib/studio-context'
 import { useAppRoute } from '@/app/use-app-route'
 import { Button } from '@/components/ui/button'
 import { captions } from '@/lib/strings'
@@ -71,6 +71,7 @@ export default function Processing({
   const [logs, setLogs] = useState<string[]>([])
   const [logsOpen, setLogsOpen] = useState(false)
   const { navigateTo } = useAppRoute()
+  const { setRecord } = useStudioContext()
   const hasStarted = useRef(false)
   const logsEndRef = useRef<HTMLDivElement>(null)
 
@@ -418,7 +419,7 @@ export default function Processing({
               variant="secondary"
               className="gap-2"
               onClick={() => {
-                if (completedRecord) setStudioRecord(completedRecord)
+                if (completedRecord) setRecord(completedRecord)
                 navigateTo('export')
               }}
             >
@@ -427,7 +428,7 @@ export default function Processing({
             <Button
               className="gap-2"
               onClick={() => {
-                if (completedRecord) setStudioRecord(completedRecord)
+                if (completedRecord) setRecord(completedRecord)
                 navigateTo('studio')
               }}
             >
