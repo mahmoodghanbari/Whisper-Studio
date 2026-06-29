@@ -24,11 +24,17 @@ export function createScopedCache<T>(
       }
 
       if (!pendingRequest) {
-        pendingRequest = fetcher().then((value) => {
-          cache = { checkedAt: Date.now(), value }
-          pendingRequest = null
-          return value
-        })
+        pendingRequest = fetcher().then(
+          (value) => {
+            cache = { checkedAt: Date.now(), value }
+            pendingRequest = null
+            return value
+          },
+          (error: unknown) => {
+            pendingRequest = null
+            throw error
+          }
+        )
       }
 
       return pendingRequest
