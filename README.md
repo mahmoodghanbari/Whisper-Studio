@@ -1,6 +1,21 @@
 # Whisper Studio
 
+<p align="center">
+  
+<img width="120" height="120" alt="Whisper Studio" src="https://github.com/user-attachments/assets/8c76ac8a-29a2-4781-9932-76286cfa4894" />
+
+</p>
+
+<h1 align="center">Whisper Studio</h1>
+
+<p align="center">
+  <strong>Whisper Studio is an independent desktop interface for OpenAI Whisper.</strong><br/>
+	<span>complete with apps for macOS, Windows, Linux</span>
+</p>
+
+<p align="center">
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+</p>
 
 <img width="3840" height="2280" alt="image 36" src="https://github.com/user-attachments/assets/a483f97f-30b6-4722-b0ee-83c139244f91" />
 
