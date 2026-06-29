@@ -4,6 +4,8 @@
 
 <img width="3840" height="2280" alt="image 36" src="https://github.com/user-attachments/assets/a483f97f-30b6-4722-b0ee-83c139244f91" />
 
+<img width="3840" height="2275" alt="Screenshot 2026-06-29 191632" src="https://github.com/user-attachments/assets/8ad99bec-276e-4781-b948-d95cb9682a29" />
+
 <img width="3840" height="2280" alt="image 38" src="https://github.com/user-attachments/assets/0f9000bf-19b5-4d27-b1fe-e90e1b5bdb70" />
 
 A cross-platform desktop application for AI-powered audio and video transcription using [OpenAI Whisper](https://github.com/openai/whisper). Built with Electron, React, TypeScript, and Vite.
