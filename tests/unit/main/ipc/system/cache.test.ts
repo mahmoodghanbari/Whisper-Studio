@@ -100,7 +100,8 @@ describe('createScopedCache()', () => {
   })
 
   it('clears the in-flight request after an error so the next call retries', async () => {
-    const fetcher = vi.fn()
+    const fetcher = vi
+      .fn()
       .mockRejectedValueOnce(new Error('first failure'))
       .mockResolvedValueOnce('ok')
 

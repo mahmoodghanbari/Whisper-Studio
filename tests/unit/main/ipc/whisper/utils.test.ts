@@ -92,7 +92,7 @@ describe('getTimestamp()', () => {
     expect(getTimestamp().length).toBeGreaterThan(0)
   })
 
-it('contains no colons or dots from ISO format (only the date-time separator dash)', () => {
+  it('contains no colons or dots from ISO format (only the date-time separator dash)', () => {
     const ts = getTimestamp()
     expect(ts).not.toMatch(/[:.]/)
   })
