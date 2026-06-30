@@ -14,11 +14,10 @@
 </p>
 
 <img alt="image 36" src="/screenshots/first.png" />
-
 <img  alt="Screenshot 2026-06-29 191632" src="/screenshots/second.png" />
+<img width="3840" height="2280" alt="image 38" src="/screenshots/third.png" />
 
-<img width="3840" height="2280" alt="image 38" src="https://github.com/user-attachments/assets/0f9000bf-19b5-4d27-b1fe-e90e1b5bdb70" />
-
+<br/>
 A cross-platform desktop application for AI-powered audio and video transcription using [OpenAI Whisper](https://github.com/openai/whisper). Built with Electron, React, TypeScript, and Vite.
 
 Whisper Studio runs entirely on your machine — no cloud services, no data leaves your device. Transcribe audio or video files, edit the resulting transcript, and export to SRT, VTT, TXT, TSV, or JSON.
@@ -33,15 +32,6 @@ Whisper Studio runs entirely on your machine — no cloud services, no data leav
 - Model manager — download and delete Whisper models in-app
 - Prerequisite checker for Python, FFmpeg, CUDA, and pip packages
 - Dark / light theme
-
-## Stack
-
-- Electron for cross-platform desktop runtime
-- React and Vite for the renderer workbench
-- shadcn/ui and Tailwind CSS for the renderer design system
-- TypeScript project references for main, preload, renderer, and shared code
-- Electron Builder for macOS, Windows, and Linux packaging
-- ESLint and Prettier for contributor-friendly consistency
 
 ## Getting Started
 
@@ -59,5 +49,3 @@ Electron Builder is configured for:
 - Linux: `AppImage`, `deb`
 
 Code signing, notarization, update feeds, and platform-specific icons should be added before publishing production releases.
-
-Tagged releases that match `v*` run `.github/workflows/release.yml` and upload platform artifacts from macOS, Windows, and Linux runners.
