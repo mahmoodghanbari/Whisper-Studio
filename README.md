@@ -13,9 +13,9 @@
 	<span>complete with apps for macOS, Windows, Linux</span>
 </p>
 
-<img width="3840" height="2280" alt="image 36" src="/screenshots/first.png" />
+<img alt="image 36" src="/screenshots/first.png" />
 
-<img width="3840" height="2275" alt="Screenshot 2026-06-29 191632" src="https://github.com/user-attachments/assets/8ad99bec-276e-4781-b948-d95cb9682a29" />
+<img  alt="Screenshot 2026-06-29 191632" src="/screenshots/second.png" />
 
 <img width="3840" height="2280" alt="image 38" src="https://github.com/user-attachments/assets/0f9000bf-19b5-4d27-b1fe-e90e1b5bdb70" />
 
